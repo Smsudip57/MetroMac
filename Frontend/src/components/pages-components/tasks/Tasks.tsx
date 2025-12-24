@@ -86,35 +86,35 @@ export default function Tasks() {
         <div className="flex items-center justify-between gap-4 mb-6">
           <div className="flex items-center">
             <SearchField
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search tasks..."
-            className="flex-1 max-w-sm"
-          />
-          <AddEditTaskModal
-            open={editModalOpen}
-            setOpen={(open) => {
-              setEditModalOpen(open);
-              if (!open) setEditingTask(null);
-            }}
-            editingTask={editingTask}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            onTaskUpdated={handleModalClose}
-            onTaskCreated={handleModalClose}
-          />
-          <div className="w-46 ml-4">
-            {/* Import/Export Toolbar */}
-            <ImportExport
-              module="task"
-              onImportSuccess={() => {
-                toast.success("Tasks imported successfully!");
-              }}
-              onExportSuccess={() => {
-                toast.success("Tasks exported successfully!");
-              }}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search tasks..."
+              className="flex-1 max-w-sm"
             />
-          </div>
+            <AddEditTaskModal
+              open={editModalOpen}
+              setOpen={(open) => {
+                setEditModalOpen(open);
+                if (!open) setEditingTask(null);
+              }}
+              editingTask={editingTask}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              onTaskUpdated={handleModalClose}
+              onTaskCreated={handleModalClose}
+            />
+            <div className="w-46 ml-4">
+              {/* Import/Export Toolbar */}
+              <ImportExport
+                module="task"
+                onImportSuccess={() => {
+                  toast.success("Tasks imported successfully!");
+                }}
+                onExportSuccess={() => {
+                  toast.success("Tasks exported successfully!");
+                }}
+              />
+            </div>
           </div>
           <CustomTab
             tabs={[
