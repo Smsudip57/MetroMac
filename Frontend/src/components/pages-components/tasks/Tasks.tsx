@@ -8,6 +8,7 @@ import SearchField from "@/components/reuseable/Shared/SearchField";
 import CustomTab from "@/components/reuseable/Shared/CustomTab";
 import ImportExport from "@/components/reuseable/ImportExport";
 import { useGetTaskStatsQuery } from "@/redux/api/tasks/taskApi";
+import { useAppSelector } from "@/lib/hooks";
 import UsersIcon from "@/assets/icons/settings/UsersIcon";
 import { toast } from "react-hot-toast";
 
@@ -16,6 +17,10 @@ export default function Tasks() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
+
+  // Get user from Redux
+  const { user } = useAppSelector((state) => state.auth);
+  const isEmployee = user?.role?.toLowerCase() === "employee";
 
   // Fetch task statistics data
   const { data: taskStatsResponse } = useGetTaskStatsQuery({});
@@ -76,7 +81,7 @@ export default function Tasks() {
 
   return (
     <div className="grid gap-6">
-      <CustomStatsCard data={statsData} />
+      {!isEmployee && <CustomStatsCard data={statsData} />}
       <ContainerWrapper>
         <div className="flex items-center justify-between gap-4 mb-6">
           <div className="flex items-center">

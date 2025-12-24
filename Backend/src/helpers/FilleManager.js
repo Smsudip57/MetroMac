@@ -22,10 +22,10 @@ export class FileManager {
   static async local(file) {
     // file: { url } expected from junk
     const junkDir = path.resolve(process.cwd(), "public", "junk");
-    const publicDir = path.resolve(process.cwd(), "public");
+    const publicDir = path.resolve(process.cwd(), "public", "uploads");
     try {
       await fs.mkdir(publicDir, { recursive: true });
-    } catch {}
+    } catch (err) {}
     // Extract filename from url
     const urlParts = file.url.split("/");
     const filename = urlParts[urlParts.length - 1];
@@ -39,7 +39,7 @@ export class FileManager {
     }
     // Move file from junk to public
     await fs.rename(junkPath, destPath);
-    return { url: `${process.env.BASE_URL}/public/${filename}` };
+    return { url: `${process.env.BASE_URL}/public/uploads/${filename}` };
   }
 
   static async Temp(file) {
