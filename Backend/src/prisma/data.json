@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Dashboard",
+    "permissions": ["view"]
+  },
+  {
+    "name": "Users",
+    "children": [
+      {
+        "name": "User List",
+        "permissions": ["view", "create", "edit", "delete"]
+      }
+    ],
+    "permissions": ["view"]
+  },
+  {
+    "name": "Tasks",
+    "children": [
+      {
+        "name": "Task List",
+        "permissions": ["view", "create", "edit", "delete"]
+      },
+      {
+        "name": "Task Comments",
+        "permissions": ["view", "create", "edit", "delete"]
+      }
+    ],
+    "permissions": ["view"]
+  },
+  {
+    "name": "Settings",
+    "children": [
+      {
+        "name": "General",
+        "permissions": ["view", "edit"]
+      },
+      {
+        "name": "Roles & Permissions",
+        "permissions": ["view", "edit"]
+      }
+    ],
+    "permissions": ["view"]
+  }
+]

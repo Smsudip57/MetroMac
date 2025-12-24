@@ -1,0 +1,33 @@
+name: CI/CD Deploy
+
+on:
+  push:
+    branches:
+      - main  # or your deploy branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_KEY }}
+          script: |
+            cd /deploy/CHr_CodeCar/Backend
+            git reset --hard
+            git pull origin main
+            npm install
+            npx prisma migrate deploy --schema=src/prisma/schema.prisma
+            pm2 restart app_name || pm2 start "npm start" --name "app_name"

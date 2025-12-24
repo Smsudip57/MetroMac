@@ -1,0 +1,9 @@
+/* // allows default ul and dot to show up */
+.jodit-wysiwyg ul {
+    list-style: inside;
+}
+/* // allows default ol to show up */
+.jodit-wysiwyg ol {
+    list-style: inside;
+    list-style-type: number;
+}

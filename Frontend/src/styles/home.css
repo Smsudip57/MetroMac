@@ -1,0 +1,7 @@
+/* Ensure icons have consistent dimensions */
+.feature-icon {
+    width: 60px !important;
+    height: 60px !important;
+    object-fit: contain;
+    object-position: center;
+}

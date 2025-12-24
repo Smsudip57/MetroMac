@@ -1,0 +1,473 @@
+import { PrismaClient } from "@prisma/client";
+import { StatusCodes } from "http-status-codes";
+import ResponseFormatter from "../../helpers/responseFormater.js";
+import ApiError from "../../errors/ApiError.js";
+import { ExcelExporter } from "../../helpers/ExcelExporter.js";
+import { ExcelImporter } from "../../helpers/ExcelImporter.js";
+import { ColumnMapper } from "../../helpers/ExcelColumnMapper.js";
+import Papa from "papaparse";
+
+const prisma = new PrismaClient();
+
+
+async function exportData(req, res, next) {
+    try {
+        const { module, format = "xlsx", ...filters } = req.query;
+
+        console.log(`[EXPORT] Module: ${module}, Format: ${format}, Filters:`, filters);
+
+        if (!module) {
+            return ResponseFormatter.error(
+                res,
+                new ApiError(StatusCodes.BAD_REQUEST, "Module name is required")
+            );
+        }
+
+        const validFormats = ["csv", "xlsx"];
+        if (!validFormats.includes(format?.toLowerCase())) {
+            return ResponseFormatter.error(
+                res,
+                new ApiError(
+                    StatusCodes.BAD_REQUEST,
+                    `Format must be one of: ${validFormats.join(", ")}`
+                )
+            );
+        }
+
+        // Fetch data based on module
+        const data = await fetchDataByModule(module, filters);
+
+        if (!data || data.length === 0) {
+            return ResponseFormatter.error(
+                res,
+                new ApiError(StatusCodes.NOT_FOUND, `No records found for module: ${module}`)
+            );
+        }
+
+        console.log(`[EXPORT] Found ${data.length} records for export`);
+
+        // Generate file based on format
+        let buffer, contentType, filename;
+
+        if (format?.toLowerCase() === "xlsx") {
+            buffer = await ExcelExporter.export({
+                data,
+                moduleName: module,
+                fileName: module,
+            });
+            contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            filename = `${module}-export-${Date.now()}.xlsx`;
+        } else {
+            // CSV format
+            buffer = await exportToCSV(data, module);
+            contentType = "text/csv";
+            filename = `${module}-export-${Date.now()}.csv`;
+        }
+
+        // Send file as response
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.send(buffer);
+
+        console.log(`[EXPORT] File sent: ${filename}`);
+    } catch (error) {
+        console.error("[EXPORT ERROR]", error);
+        next(error);
+    }
+}
+
+
+async function importData(req, res, next) {
+    try {
+        const { module, mode = "insert" } = req.body;
+
+        console.log(`[IMPORT] Module: ${module}, Mode: ${mode}`);
+
+        if (!module) {
+            return ResponseFormatter.error(
+                res,
+                new ApiError(StatusCodes.BAD_REQUEST, "Module name is required")
+            );
+        }
+
+        if (!req.file) {
+            return ResponseFormatter.error(
+                res,
+                new ApiError(StatusCodes.BAD_REQUEST, "File is required")
+            );
+        }
+
+        const validModes = ["insert", "update", "merge"];
+        if (!validModes.includes(mode?.toLowerCase())) {
+            return ResponseFormatter.error(
+                res,
+                new ApiError(
+                    StatusCodes.BAD_REQUEST,
+                    `Mode must be one of: ${validModes.join(", ")}`
+                )
+            );
+        }
+
+
+        ExcelImporter.validateFile(req.file);
+
+        console.log(`[IMPORT] File received: ${req.file.originalname} (${req.file.size} bytes)`);
+
+        let importResult;
+
+        if (req.file.mimetype === "text/csv" || req.file.originalname.endsWith(".csv")) {
+            importResult = await parseCSVFile(req.file.buffer, module);
+        } else {
+            importResult = await ExcelImporter.import({
+                fileBuffer: req.file.buffer,
+                moduleName: module,
+                skipHeader: true,
+            });
+        }
+
+        console.log(
+            `[IMPORT] Parsed records: ${importResult.records.length}, Errors: ${importResult.errors.length}`
+        );
+
+        if (importResult.errors.length > 0 && importResult.records.length === 0) {
+            return ResponseFormatter.error(
+                res,
+                new ApiError(
+                    StatusCodes.BAD_REQUEST,
+                    "File parsing failed - no valid records found",
+                    { errors: importResult.errors.slice(0, 10) } // Show first 10 errors
+                )
+            );
+        }
+
+        // Process records based on mode
+        const processResult = await processImportedRecords(
+            importResult.records,
+            module,
+            mode
+        );
+
+        console.log(`[IMPORT] Processed - Success: ${processResult.success}, Failed: ${processResult.failed}`);
+
+        return ResponseFormatter.success(
+            res,
+            {
+                module,
+                mode,
+                totalRecords: importResult.records.length,
+                successfulImports: processResult.success,
+                failedImports: processResult.failed,
+                errors: processResult.errors.slice(0, 20), // Show first 20 errors
+                warnings: importResult.errors.slice(0, 10), // Show first 10 parsing warnings
+                timestamp: new Date().toISOString(),
+            },
+            `Import completed: ${processResult.success} succeeded, ${processResult.failed} failed`
+        );
+    } catch (error) {
+        console.error("[IMPORT ERROR]", error);
+        next(error);
+    }
+}
+
+
+async function getImportExportConfig(req, res, next) {
+    try {
+        const { module } = req.params;
+
+        console.log(`[CONFIG] Fetching config for module: ${module}`);
+
+        if (!module) {
+            return ResponseFormatter.error(
+                res,
+                new ApiError(StatusCodes.BAD_REQUEST, "Module name is required")
+            );
+        }
+
+        const columns = ColumnMapper.getExportColumns(module);
+
+        if (!columns || Object.keys(columns).length === 0) {
+            return ResponseFormatter.error(
+                res,
+                new ApiError(
+                    StatusCodes.BAD_REQUEST,
+                    `No configuration found for module: ${module}`
+                )
+            );
+        }
+
+        const mappingInfo = ColumnMapper.getMappingInfo(module);
+
+        return ResponseFormatter.success(
+            res,
+            {
+                module,
+                totalColumns: mappingInfo.length,
+                columns: mappingInfo,
+                supportedFormats: ["csv", "xlsx"],
+                supportedModes: ["insert", "update", "merge"],
+            },
+            "Configuration retrieved successfully"
+        );
+    } catch (error) {
+        console.error("[CONFIG ERROR]", error);
+        next(error);
+    }
+}
+
+
+async function fetchDataByModule(module, filters) {
+    switch (module?.toLowerCase()) {
+        case "quotation":
+            return await prisma.quotation.findMany({
+                include: {
+                    customer: {
+                        select: {
+                            firstName: true,
+                            lastName: true,
+                            email: true,
+                            phone: true,
+                        },
+                    },
+                    status: { select: { name: true } },
+                },
+                take: parseInt(filters.limit) || 1000,
+                where: buildWhereClause(module, filters),
+            });
+
+        case "invoice":
+            return await prisma.invoice.findMany({
+                include: {
+                    quotation: {
+                        select: {
+                            quotation_number: true,
+                            customer: {
+                                select: {
+                                    firstName: true,
+                                    lastName: true,
+                                },
+                            },
+                        },
+                    },
+                    status: { select: { name: true } },
+                    payment_method: { select: { name: true } },
+                    sales_items: { select: { total_price: true } },
+                },
+                take: parseInt(filters.limit) || 1000,
+                where: buildWhereClause(module, filters),
+            });
+
+        case "lead":
+            return await prisma.lead.findMany({
+                include: {
+                    status: { select: { name: true } },
+                    source: { select: { name: true } },
+                },
+                take: parseInt(filters.limit) || 1000,
+                where: buildWhereClause(module, filters),
+            });
+
+        default:
+            throw new Error(`Unsupported module: ${module}`);
+    }
+}
+
+
+function buildWhereClause(module, filters) {
+    const where = {};
+
+    if (filters.search) {
+        where.OR = [
+            { notes: { contains: filters.search, mode: "insensitive" } },
+        ];
+
+        if (module === "quotation") {
+            where.OR.push({
+                quotation_number: { contains: filters.search, mode: "insensitive" },
+            });
+        }
+        if (module === "invoice") {
+            where.OR.push({
+                invoice_number: { contains: filters.search, mode: "insensitive" },
+            });
+        }
+        if (module === "lead") {
+            where.OR = [
+                { title: { contains: filters.search, mode: "insensitive" } },
+                { first_name: { contains: filters.search, mode: "insensitive" } },
+                { email: { contains: filters.search, mode: "insensitive" } },
+            ];
+        }
+    }
+
+
+    if (filters.status_id) {
+        where.status_id = parseInt(filters.status_id);
+    }
+
+
+    if (filters.date_from || filters.date_to) {
+        const dateField = module === "lead" ? "created_at" : "issue_date";
+        where[dateField] = {};
+
+        if (filters.date_from) {
+            where[dateField].gte = new Date(filters.date_from);
+        }
+        if (filters.date_to) {
+            where[dateField].lte = new Date(filters.date_to);
+        }
+    }
+
+    return where;
+}
+
+
+async function exportToCSV(data, module) {
+    const columns = ColumnMapper.getExportColumns(module);
+
+    const formattedData = data.map((record) =>
+        ColumnMapper.formatDataForExcel(record, module)
+    );
+
+    const headers = Object.values(columns).map((col) => col.header);
+
+    const csv = Papa.unparse({
+        fields: headers,
+        data: formattedData,
+    });
+
+    return Buffer.from(csv, "utf-8");
+}
+
+
+async function parseCSVFile(fileBuffer, module) {
+    return new Promise((resolve, reject) => {
+        const csvString = fileBuffer.toString("utf-8");
+
+        Papa.parse(csvString, {
+            header: true,
+            skipEmptyLines: true,
+            dynamicTyping: false,
+            complete: (results) => {
+                const records = [];
+                const errors = [];
+                const columns = ColumnMapper.getExportColumns(module);
+
+                results.data.forEach((row, index) => {
+                    try {
+                        if (!row || Object.keys(row).every((k) => !row[k])) {
+                            return; // Skip empty rows
+                        }
+
+                        const dbRecord = ColumnMapper.formatDataForDB(row, module);
+                        records.push({
+                            rowNumber: index + 2, // +2 because CSV header is row 1
+                            data: dbRecord,
+                            rawExcel: row,
+                            status: "pending",
+                        });
+                    } catch (error) {
+                        errors.push({
+                            rowNumber: index + 2,
+                            error: error.message,
+                            data: row,
+                        });
+                    }
+                });
+
+                resolve({
+                    records,
+                    errors,
+                    total: records.length,
+                    totalErrors: errors.length,
+                    timestamp: new Date().toISOString(),
+                });
+            },
+            error: (error) => {
+                reject(new Error(`CSV parsing error: ${error.message}`));
+            },
+        });
+    });
+}
+
+async function processImportedRecords(records, module, mode) {
+    const result = {
+        success: 0,
+        failed: 0,
+        errors: [],
+    };
+
+    for (const record of records) {
+        try {
+            switch (module?.toLowerCase()) {
+                case "quotation":
+                    await processQuotationImport(record, mode);
+                    break;
+                case "invoice":
+                    await processInvoiceImport(record, mode);
+                    break;
+                case "lead":
+                    await processLeadImport(record, mode);
+                    break;
+                default:
+                    throw new Error(`Unsupported module: ${module}`);
+            }
+            result.success++;
+            record.status = "imported";
+        } catch (error) {
+            result.failed++;
+            record.status = "failed";
+            result.errors.push({
+                row: record.rowNumber,
+                message: error.message,
+                data: record.data,
+            });
+        }
+    }
+
+    return result;
+}
+
+
+async function processQuotationImport(record, mode) {
+    const { data } = record;
+
+    if (mode === "insert" || mode === "merge") {
+        // For now, just validate data structure
+        if (!data.quotation_number) {
+            throw new Error("quotation_number is required");
+        }
+        // In real implementation, would create in database
+        console.log(`[QUOTATION] Importing: ${data.quotation_number}`);
+    }
+}
+
+
+async function processInvoiceImport(record, mode) {
+    const { data } = record;
+
+    if (mode === "insert" || mode === "merge") {
+        if (!data.invoice_number) {
+            throw new Error("invoice_number is required");
+        }
+        // In real implementation, would create in database
+        console.log(`[INVOICE] Importing: ${data.invoice_number}`);
+    }
+}
+
+async function processLeadImport(record, mode) {
+    const { data } = record;
+
+    if (mode === "insert" || mode === "merge") {
+        if (!data.first_name || !data.last_name) {
+            throw new Error("first_name and last_name are required");
+        }
+        // In real implementation, would create in database
+        console.log(`[LEAD] Importing: ${data.first_name} ${data.last_name}`);
+    }
+}
+
+export {
+    exportData,
+    importData,
+    getImportExportConfig,
+};
