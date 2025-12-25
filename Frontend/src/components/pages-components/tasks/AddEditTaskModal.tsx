@@ -94,7 +94,7 @@ export default function AddEditTaskModal({
               : "Pending",
           },
           hold_reason: editingTask.hold_reason || "",
-          alert_frequency: 0,
+          alert_frequency: editingTask.taskAlerts?.length || 0,
           // Set reporter_id from editing task
           reporter_id:
             editingTask.reporter_id && editingTask.reporter
@@ -147,6 +147,7 @@ export default function AddEditTaskModal({
             : null,
           start_date: data.start_date,
           end_date: data.end_date,
+          alert_frequency: data.alert_frequency,
         };
         return {
           values: schema.parse(mappedData),
@@ -167,7 +168,7 @@ export default function AddEditTaskModal({
   const statusValue = methods.watch("status");
   const currentStatus =
     typeof statusValue === "object" ? statusValue?.value : statusValue;
-  const formAlertFrequency = methods.watch("alert_frequency") || 0;
+  const formAlertFrequency = alertFormMethods.watch("alert_frequency") || 0;
 
   // Reset form values when editingTask changes
   useEffect(() => {
