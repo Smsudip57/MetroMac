@@ -367,7 +367,7 @@ export default function AddEditTaskModal({
                 : "Fill in the details to create a new task."}
             </p>
           </div>
-          <div className={` flex flex-col gap-4 ${isMobile?"!max-h-[calc(100vh-185px)]":"!max-h-[calc(80vh-160px)]"} overflow-y-auto pr-6 pt-4`}>
+          <div className={` flex flex-col gap-4 ${isMobile?"!max-h-[calc(100vh-160px)]":"!max-h-[calc(80vh-160px)]"} overflow-y-auto pr-6 pt-4`}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-3">
                 <FormInputHF
