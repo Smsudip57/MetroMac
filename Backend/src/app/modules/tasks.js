@@ -353,7 +353,7 @@ async function getTasks(req, res, next) {
       req?.user?.role?.toLowerCase() === "employee";
 
     // Super users can view archived tasks if requested
-    if (req?.user?.is_super_user && showArchived === "true") {
+    if ( showArchived === "true") {
       where.is_archived = true;
     }
 
@@ -789,7 +789,7 @@ async function updateTask(req, res, next) {
     let isArchiving = false;
     if (req.body.is_archived !== undefined && req.body.is_archived === true) {
       const canArchive =
-        req?.user?.is_super_user || req.user?.id !== currentTask.assigned_to;
+        req?.user?.is_super_user || (req.user?.role?.toLowerCase() === "manager");
 
       if (!canArchive) {
         throw new ApiError(
@@ -1383,7 +1383,7 @@ async function deleteTask(req, res, next) {
       throw new ApiError(StatusCodes.NOT_FOUND, "Task not found");
     }
 
-    if (!req.user.is_super_user && req.user.id !== task.reporter_id) {
+    if  (req.user?.role?.toLowerCase() !== "manager") {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
         "Not authorized to delete this task"
