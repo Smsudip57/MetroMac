@@ -910,7 +910,16 @@ async function updateTask(req, res, next) {
       }
       try {
         // Reassignment notification
-        await PushNotificationService.notifyTaskUpdated(task, "reassigned");
+        await PushNotificationService.sendToUser(parseInt(assigned_to), {
+          title: "Task Reassigned",
+          body: `You have been assigned to task "${task.title}"`,
+          icon: "/icons/notification-icon.png",
+          badge: "/icons/notification-badge.png",
+          data: {
+            type: "task_reassigned",
+            taskId: task.id,
+          },
+        });
       } catch (pushError) {
         console.error(
           "Failed to send reassignment push notification:",
@@ -1009,7 +1018,16 @@ async function updateTask(req, res, next) {
       }
       try {
         // Regular update notification
-        await PushNotificationService.notifyTaskUpdated(task, "updated");
+        await PushNotificationService.sendToUser(task.assigned_to, {
+          title: "Task Updated",
+          body: `Task "${task.title}" has been updated`,
+          icon: "/icons/notification-icon.png",
+          badge: "/icons/notification-badge.png",
+          data: {
+            type: "task_updated",
+            taskId: task.id,
+          },
+        });
       } catch (pushError) {
         console.error("Failed to send update push notification:", pushError);
       }
