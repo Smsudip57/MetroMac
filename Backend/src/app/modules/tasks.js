@@ -1383,7 +1383,7 @@ async function deleteTask(req, res, next) {
       throw new ApiError(StatusCodes.NOT_FOUND, "Task not found");
     }
 
-    if  (req.user?.role?.toLowerCase() !== "manager") {
+    if  (req.user?.role?.toLowerCase() === "employee") {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
         "Not authorized to delete this task"
