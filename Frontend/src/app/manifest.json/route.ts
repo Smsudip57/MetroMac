@@ -31,13 +31,13 @@ export async function GET() {
         icon512 = resizedIcons.icon512;
 
         // Check if SVG was returned
-        if (icon64.endsWith('.svg')) {
+        if (icon64.endsWith(".svg")) {
           icon64Type = "image/svg+xml";
         }
-        if (icon192.endsWith('.svg')) {
+        if (icon192.endsWith(".svg")) {
           icon192Type = "image/svg+xml";
         }
-        if (icon512.endsWith('.svg')) {
+        if (icon512.endsWith(".svg")) {
           icon512Type = "image/svg+xml";
         }
       } catch (error) {
