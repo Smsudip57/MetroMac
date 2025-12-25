@@ -103,15 +103,26 @@ async function createTask(req, res, next) {
         const frequency = parseInt(alertFrequency);
         const currentAlertsCount = taskAlerts.length;
 
-        if (frequency < currentAlertsCount) {
-          throw new ApiError(
-            StatusCodes.BAD_REQUEST,
-            "Alert frequency must be equal to the number of set alerts or more than it"
-          );
-        }
+        // If taskAlerts is empty, generate all alerts from start_date to end_date
+        if (currentAlertsCount === 0) {
+          const startDateObj = new Date(start_date);
+          const endDateObj = new Date(end_date);
+          const timeDifference =
+            endDateObj.getTime() - startDateObj.getTime();
 
-        // If frequency > current alerts, generate missing alerts
-        if (frequency > currentAlertsCount) {
+          // Calculate interval for each alert
+          const interval = timeDifference / (frequency + 1);
+
+          // Generate all alerts
+          for (let i = 1; i <= frequency; i++) {
+            const alertTime = startDateObj.getTime() + interval * i;
+            const alertDate = new Date(alertTime);
+            taskAlerts.push({
+              alert_date: alertDate.toISOString(),
+            });
+          }
+        } else if (frequency > currentAlertsCount) {
+          // If frequency > current alerts, generate missing alerts
           const requiredAlerts = frequency - currentAlertsCount;
 
           // Find the furthest/most future alert date
@@ -675,8 +686,27 @@ async function updateTask(req, res, next) {
         const frequency = parseInt(alertFrequency);
         const currentAlertsCount = taskAlerts.length;
 
-        // If frequency > current alerts, generate missing alerts
-        if (frequency > currentAlertsCount) {
+        // If taskAlerts is empty, generate all alerts from start_date to end_date
+        if (currentAlertsCount === 0) {
+          const endDateObj = end_date
+            ? new Date(end_date)
+            : currentTask.end_date;
+          const timeDifference =
+            endDateObj.getTime() - finalStartDate.getTime();
+
+          // Calculate interval for each alert
+          const interval = timeDifference / (frequency + 1);
+
+          // Generate all alerts
+          for (let i = 1; i <= frequency; i++) {
+            const alertTime = finalStartDate.getTime() + interval * i;
+            const alertDate = new Date(alertTime);
+            taskAlerts.push({
+              alert_date: alertDate.toISOString(),
+            });
+          }
+        } else if (frequency > currentAlertsCount) {
+          // If frequency > current alerts, generate missing alerts
           const requiredAlerts = frequency - currentAlertsCount;
 
           // Find the furthest/most future alert date

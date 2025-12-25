@@ -201,7 +201,10 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
               ],
             }
           : null,
-      ].filter((item) => item && (item.type === "accordion" || hasPermission(item.title))),
+      ].filter(
+        (item) =>
+          item && (item.type === "accordion" || hasPermission(item.title))
+      ),
     },
     {
       label: "SALES",
@@ -248,6 +251,7 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
                     alt="Company Icon"
                     width={28}
                     height={28}
+                    quality={100}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -288,8 +292,9 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
                   <NextImage
                     src={settings.company_logo}
                     alt="Company Logo"
-                    width={120}
-                    height={40}
+                    width={100}
+                    height={100}
+                    quality={100}
                     className="h-10 w-auto"
                   />
                 ) : (
@@ -348,7 +353,7 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
                 </div>
               )}
               {isSidebarCollapsed && <span className="mb-1" />}
-              {section.items.map((item:any) => {
+              {section.items.map((item: any) => {
                 if (item.type === "item") {
                   // item is SidebarItemType
                   return (

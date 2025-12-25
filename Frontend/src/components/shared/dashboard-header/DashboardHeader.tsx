@@ -33,16 +33,16 @@ const DashboardHeader: React.FC = () => {
   return (
     <header className="bg-white dark:bg-bg w-full flex items-center px-4 sm+:px-8 h-14 sm+:h-16">
       <div className="flex flex-row justify-between items-center w-full">
-        {/* <div className="flex flex-row justify-start items-center gap-4">
+        <div className="flex flex-row justify-start items-center gap-4">
           <div className="hidden xl:block -ml-4">
             <SidebarCollapseButton />
           </div>
-          <SearchField />
+          {/* <SearchField /> */}
 
-          <div className="md:hidden flex items-center justify-center">
+          {/* <div className="md:hidden flex items-center justify-center">
             <Search className="cursor-pointer text-neutral hover:text-primary hover:bg-bg_shade transition-all duration-200 size-6 p-1 rounded-md" />
-          </div>
-        </div> */}
+          </div> */}
+        </div>
         <div></div>
 
         <div className="flex items-center gap-5 justify-end">
