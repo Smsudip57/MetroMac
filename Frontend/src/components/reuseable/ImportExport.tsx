@@ -103,7 +103,7 @@ export default function ImportExport({
       </button>
 
       {/* Import Icon Button */}
-      <button
+      {/* <button
         onClick={handleImportClick}
         disabled={isImporting || isExporting}
         className="flex items-center justify-center w-8 h-8 rounded-lg  border border-border hover:border-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
@@ -114,7 +114,7 @@ export default function ImportExport({
         ) : (
           <Upload className="w-3.5 h-3.5 text-primary" />
         )}
-      </button>
+      </button> */}
 
       {/* Hidden File Input */}
       <input

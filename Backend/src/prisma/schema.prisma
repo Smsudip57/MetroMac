@@ -78,6 +78,7 @@ model User {
     userPermissions    UserPermission[]
     tasksAssigned      Task[]            @relation("TaskAssignee")
     tasksReported      Task[]            @relation("TaskReporter")
+    tasksCreated       Task[]            @relation("TaskCreator")
     taskComments       TaskComment[]     @relation("TaskCommentAuthor")
     uploadedFiles      TaskFile[]        @relation("TaskFileUploader")
     pushSubscriptions  PushSubscription[]
@@ -116,9 +117,13 @@ model Task {
     assignee    User?      @relation("TaskAssignee", fields: [assigned_to], references: [id])
     reporter_id Int        // employee
     reporter    User       @relation("TaskReporter", fields: [reporter_id], references: [id])
+    created_by  Int
+    creator     User       @relation("TaskCreator", fields: [created_by], references: [id])
     start_date  DateTime   @db.Date
     end_date    DateTime   @db.Date
     status      TaskStatus @default(pending)
+    hold_reason String?    // Reason for on_hold status
+    is_archived Boolean    @default(false)
     created_at  DateTime   @default(now())
     updated_at  DateTime   @default(now()) @updatedAt
 

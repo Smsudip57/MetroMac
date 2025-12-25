@@ -148,7 +148,7 @@ export default function UsersTable({
 
   return (
     <>
-      <div className="space-y-6 ">
+      <div className="space-y-6 !mt-4 sm+:!mt-6">
         <div className="space-y-6  ">
           {/* Users Table */}
           <div className="bg-bg rounded-lg  ">

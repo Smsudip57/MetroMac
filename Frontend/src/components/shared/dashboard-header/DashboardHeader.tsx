@@ -31,27 +31,26 @@ const DashboardHeader: React.FC = () => {
   }, [isInstallable, isInstalled]);
 
   return (
-    <header className="bg-white dark:bg-bg shadow-sm w-full flex items-center px-8 lg:h-16 md:h-[60px]">
+    <header className="bg-white dark:bg-bg w-full flex items-center px-4 sm+:px-8 h-14 sm+:h-16">
       <div className="flex flex-row justify-between items-center w-full">
-        <div className="flex flex-row justify-start items-center gap-4">
-          {/* Sidebar collapse/expand button for desktop */}
+        {/* <div className="flex flex-row justify-start items-center gap-4">
           <div className="hidden xl:block -ml-4">
             <SidebarCollapseButton />
           </div>
-          {/* Search Bar */}
           <SearchField />
 
           <div className="md:hidden flex items-center justify-center">
             <Search className="cursor-pointer text-neutral hover:text-primary hover:bg-bg_shade transition-all duration-200 size-6 p-1 rounded-md" />
           </div>
-        </div>
+        </div> */}
+        <div></div>
 
         <div className="flex items-center gap-5 justify-end">
           {/* Install App Button (Mobile/PWA) */}
           {!isInstalled && (
             <button
               onClick={install}
-              className="relative p-2 rounded-lg bg-primary hover:bg-primary/90 transition-all duration-200 w-9 h-9 flex items-center justify-center border-none focus:outline-none"
+              className="relative p-2 rounded-lg bg-primary hover:bg-primary/90 transition-all duration-200 size-8 sm+:size-9 flex items-center justify-center border-none focus:outline-none"
               title="Install MetroMac App"
               aria-label="Install app"
             >

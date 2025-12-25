@@ -10,6 +10,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: {
+        "sm+": "575px", // Custom breakpoint for 575px and above
+      },
       colors: {
         //--------------- Light Mode Colors -------------------
         // "light-alpha": "hsla(179, 6%, 20%, 1)", // #2F3535

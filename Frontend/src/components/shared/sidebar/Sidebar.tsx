@@ -34,6 +34,7 @@ import {
   Database,
   LogOut,
   ListTodo,
+  Archive,
 } from "lucide-react";
 
 type SidebarProps = {
@@ -181,13 +182,26 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
           title: "Users",
           link: "/users",
         },
-        {
-          type: "item",
-          icon: <ListTodo className="size-4" />,
-          title: "Tasks",
-          link: "/tasks",
-        },
-      ].filter((item) => hasPermission(item.title)),
+        hasPermission("Tasks")
+          ? {
+              type: "accordion",
+              icon: <ListTodo className="size-4" />,
+              title: "Tasks",
+              menuItems: [
+                {
+                  title: "All",
+                  link: "/tasks",
+                  icon: <CheckSquare className="size-4" />,
+                },
+                {
+                  title: "Archived",
+                  link: "/tasks/archived",
+                  icon: <Archive className="size-4" />,
+                },
+              ],
+            }
+          : null,
+      ].filter((item) => item && (item.type === "accordion" || hasPermission(item.title))),
     },
     {
       label: "SALES",
@@ -334,7 +348,7 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
                 </div>
               )}
               {isSidebarCollapsed && <span className="mb-1" />}
-              {section.items.map((item) => {
+              {section.items.map((item:any) => {
                 if (item.type === "item") {
                   // item is SidebarItemType
                   return (

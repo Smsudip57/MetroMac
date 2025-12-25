@@ -11,7 +11,7 @@ export default function ContainerWrapper({
 }) {
   return (
     <div
-      className={`space-y-6 bg-bg p-6 rounded-lg overflow-hidden border-border border ${className}`}
+      className={`space-y-6 bg-bg p-4 xl:p-6 rounded-lg overflow-hidden border-border border ${className}`}
       style={style}
     >
       {children}

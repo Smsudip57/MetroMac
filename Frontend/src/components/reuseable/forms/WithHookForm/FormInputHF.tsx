@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Eye, EyeOff } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { fieldContainerStyles, FieldLabel } from "./FieldWrapper";
 
@@ -40,8 +40,23 @@ const FormInputHF: React.FC<FormInputHFProps> = ({
   max,
   step = 1,
 }) => {
-  const { control } = useFormContext();
+  const { control, watch, setValue } = useFormContext();
   const [showPassword, setShowPassword] = useState(false);
+  const currentValue = watch(name);
+
+  useEffect(() => {
+    if (type !== "number") return;
+    if (min === undefined) return;
+
+    // Reset to min if current value is less than min
+    if (
+      currentValue !== "" &&
+      currentValue !== undefined &&
+      currentValue < min
+    ) {
+      setValue(name, min);
+    }
+  }, [currentValue, min, name, setValue, type]);
 
   return (
     <Controller
@@ -82,6 +97,12 @@ const FormInputHF: React.FC<FormInputHFProps> = ({
                   error && "border-warning focus-visible:ring-warning",
                   className
                 )}
+                onKeyDown={(e) => {
+                  // Prevent 'e', 'E', '+', '-' to avoid scientific notation
+                  if (["e", "E"].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
                 onChange={(e) => {
                   const value =
                     e.target.value === "" ? "" : Number(e.target.value);

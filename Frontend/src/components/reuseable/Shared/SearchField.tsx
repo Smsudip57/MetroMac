@@ -37,6 +37,17 @@ export default function SearchField({
   autoFocus = false,
   disabled = false,
 }: SearchFieldProps) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Prevent form submission on Enter key
+    if (e.key === "Enter") {
+      e.preventDefault();
+    }
+    // Call custom onKeyDown handler if provided
+    if (onKeyDown) {
+      onKeyDown(e);
+    }
+  };
+
   return (
     <form
       className={`${defaultFormClass} ${className}`}
@@ -47,7 +58,7 @@ export default function SearchField({
         type="text"
         value={value}
         onChange={onChange}
-        onKeyDown={onKeyDown}
+        onKeyDown={handleKeyDown}
         className={`${defaultInputClass} ${inputClassName}`}
         placeholder={placeholder}
         autoFocus={autoFocus}

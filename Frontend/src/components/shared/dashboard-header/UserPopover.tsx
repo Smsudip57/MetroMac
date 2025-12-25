@@ -24,8 +24,8 @@ const UserPopover = ({ user }: UserPopoverProps) => (
             variant="ghost"
             className="flex h-auto hover:bg-transparent rounded-lg px-2 gap-2"
           >
-            <div className="text-primary font-medium 2xl:block hidden text-end">
-              <p className="text-sm line-clamp-1 text-text_highlight  font-semibold group-hover:text-primary">
+            <div className="text-primary font-medium block text-end">
+              <p className="text-xs sm+:text-sm line-clamp-1 text-text_highlight font-semibold group-hover:text-primary">
                 {(user?.firstName || user?.first_name) &&
                 (user?.lastName || user?.last_name)
                   ? `${user.firstName || user.first_name} ${
@@ -33,7 +33,7 @@ const UserPopover = ({ user }: UserPopoverProps) => (
                     }`
                   : user?.username || "User"}
               </p>
-              <p className="text-[12px] leading-[16px] text-text_highlight">
+              <p className="text-[10px] sm+:text-[12px] leading-[16px] text-text_highlight">
                 {user?.is_super_user
                   ? "Super User"
                   : typeof user?.role === "string"

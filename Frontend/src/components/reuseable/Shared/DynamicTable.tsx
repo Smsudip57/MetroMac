@@ -29,6 +29,13 @@ interface SwitchConfig {
   className?: string;
 }
 
+interface IconConfig {
+  view?: React.ReactNode | ((item: any) => React.ReactNode);
+  edit?: React.ReactNode | ((item: any) => React.ReactNode);
+  support?: React.ReactNode | ((item: any) => React.ReactNode);
+  delete?: React.ReactNode | ((item: any) => React.ReactNode);
+}
+
 interface Column {
   key: string;
   header: string;
@@ -87,6 +94,8 @@ interface DynamicTableProps {
   onSort?: (key: string, direction: "asc" | "desc") => void;
   // Column divider prop
   showColumnDividers?: boolean;
+  // Custom icons for actions
+  icons?: IconConfig;
 }
 
 export function DynamicTable({
@@ -106,8 +115,20 @@ export function DynamicTable({
   sortConfig,
   onSort,
   showColumnDividers = false,
+  icons = {},
 }: DynamicTableProps) {
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
+
+  // Default icons - maintain current system
+  const defaultIcons = {
+    view: <FiEye size={16} />,
+    edit: <TableEditIcon width={16} height={16} fill="currentColor" />,
+    support: <BiSupport className="w-4 h-4" />,
+    delete: <DeleteIcon width={16} height={16} fill="currentColor" />,
+  };
+
+  // Merge provided icons with defaults
+  const mergedIcons = { ...defaultIcons, ...icons };
   // const [currentPage, setCurrentPage] = useState(1);
   // const [pageSize, setPageSize] = useState(
   //     options.pagination?.pageSize || 10
@@ -186,7 +207,7 @@ export function DynamicTable({
           className
         )}
       >
-        <ContainerWrapper className="!p-0 border-none">
+        <ContainerWrapper className="!p-0 !border-black border">
           <Table className="w-full">
             <TableHeader className="bg-primary/10 rounded-2xl ">
               <TableRow className="border-none hover:bg-transparent !rounded-2xl">
@@ -217,7 +238,7 @@ export function DynamicTable({
                           ? "cursor-pointer hover:bg-primary/5 select-none"
                           : ""
                       } ${
-                        showColumnDividers ? "border-r border-border" : ""
+                        showColumnDividers ? "border-r border-black" : ""
                       }`,
                       column.className
                     )}
@@ -260,7 +281,7 @@ export function DynamicTable({
                 data?.map((item: any, index: number) => (
                   <TableRow
                     key={item.id || index}
-                    className={`  border-b border-border !ml-6`}
+                    className={`  border-b border-black !ml-6`}
                   >
                     {options.selectable && (
                       <TableCell className="w-[50px] pl-6 align-middle ">
@@ -282,7 +303,7 @@ export function DynamicTable({
                               ? "rounded-l-lg pl-6"
                               : "pl-4"
                           } ${
-                            showColumnDividers ? "border-r border-border" : ""
+                            showColumnDividers ? "border-r border-black" : ""
                           }`,
                           column.className
                         )}
@@ -344,7 +365,9 @@ export function DynamicTable({
                                 }
                                 className="w-7 h-7 bg-primary/10 text-primary flex justify-center items-center rounded-lg"
                               >
-                                <FiEye size={16} />
+                                {typeof mergedIcons.view === "function"
+                                  ? mergedIcons.view(item)
+                                  : mergedIcons.view}
                               </button>
                             )}
 
@@ -353,11 +376,9 @@ export function DynamicTable({
                                 onClick={() => onEdit?.(item)}
                                 className="w-7 h-7 bg-secondary/10 text-secondary flex justify-center items-center rounded-lg"
                               >
-                                <TableEditIcon
-                                  width={16}
-                                  height={16}
-                                  fill="currentColor"
-                                />
+                                {typeof mergedIcons.edit === "function"
+                                  ? mergedIcons.edit(item)
+                                  : mergedIcons.edit}
                               </button>
                             )}
 
@@ -366,7 +387,9 @@ export function DynamicTable({
                                 onClick={() => onSupport?.(item)}
                                 className="w-7 h-7 bg-tertiary/10 text-tertiary flex justify-center items-center rounded-lg"
                               >
-                                <BiSupport className="w-4 h-4" />
+                                {typeof mergedIcons.support === "function"
+                                  ? mergedIcons.support(item)
+                                  : mergedIcons.support}
                               </button>
                             )}
 
@@ -375,11 +398,9 @@ export function DynamicTable({
                                 onClick={() => onDelete?.(item)}
                                 className="w-7 h-7 bg-warning/10 text-warning flex justify-center items-center rounded-lg"
                               >
-                                <DeleteIcon
-                                  width={16}
-                                  height={16}
-                                  fill="currentColor"
-                                />
+                                {typeof mergedIcons.delete === "function"
+                                  ? mergedIcons.delete(item)
+                                  : mergedIcons.delete}
                               </button>
                             )}
                           </div>

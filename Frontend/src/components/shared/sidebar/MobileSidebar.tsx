@@ -21,9 +21,9 @@ const MobileSidebar = () => {
       <div>
         <button
           onClick={toggleSidebar}
-          className="flex items-center justify-center mr-4 lg:size-16  md:size-[60px] sm:size-14 size-12 bg-light-emerald-base p-1.5 text-white rounded-xl xl:hidden lg:mt-6 mt-4"
+          className="flex items-center justify-center ml-4 sm+:ml-6 size-8 sm+:size-9 bg-primary hover:bg-primary/90 p-1.5 text-white rounded-lg xl:hidden transition-colors duration-200"
         >
-          <TbMenu3 className="md:size-10 sm:size-8 size-6" />
+          <TbMenu3 className="size-6 sm+:size-8" />
         </button>
       </div>
 
@@ -34,7 +34,7 @@ const MobileSidebar = () => {
 
       {/* Mobile Sidebar Drawer */}
       <Sidebar
-        className={`transform transition-transform duration-300 xl:hidden  z-[999999] ${
+        className={`transform transition-transform duration-300 xl:hidden ml-4 z-[999999] ${
           isSidebarOpen ? "-translate-x-[10%]" : "-translate-x-[120%]"
         }`}
       />

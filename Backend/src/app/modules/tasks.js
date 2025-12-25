@@ -9,6 +9,10 @@ import {
   taskReassignmentTemplate,
   taskUpdateTemplate,
   taskCompletionTemplate,
+  taskReporterSupervisionTemplate,
+  taskReporterUnassignmentTemplate,
+  taskHoldTemplate,
+  taskArchiveTemplate,
 } from "../../templates/emailTemplates.js";
 
 const prisma = new PrismaClient();
@@ -22,25 +26,25 @@ async function createTask(req, res, next) {
       title,
       description,
       assigned_to,
+      reporter_id,
       start_date,
       end_date,
       status,
       taskAlerts = [],
+      alertFrequency,
     } = req.body;
 
-    // Get reporter_id from authenticated user
-    const reporter_id = req.user?.id;
+    // Get created_by from authenticated user
+    const created_by = req.user?.id;
 
     // Validation
     if (!title || title.trim() === "") {
       throw new ApiError(StatusCodes.BAD_REQUEST, "Task title is required");
     }
     if (!reporter_id) {
-      throw new ApiError(
-        StatusCodes.UNAUTHORIZED,
-        "User must be authenticated to create tasks"
-      );
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Reporter ID is required");
     }
+
     if (!start_date || !end_date) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
@@ -93,6 +97,57 @@ async function createTask(req, res, next) {
           );
         }
       }
+
+      // Validate alert frequency
+      if (alertFrequency !== undefined) {
+        const frequency = parseInt(alertFrequency);
+        const currentAlertsCount = taskAlerts.length;
+
+        if (frequency < currentAlertsCount) {
+          throw new ApiError(
+            StatusCodes.BAD_REQUEST,
+            "Alert frequency must be equal to the number of set alerts or more than it"
+          );
+        }
+
+        // If frequency > current alerts, generate missing alerts
+        if (frequency > currentAlertsCount) {
+          const requiredAlerts = frequency - currentAlertsCount;
+
+          // Find the furthest/most future alert date
+          const furthestAlert = taskAlerts.reduce((max, current) => {
+            const currentDate = new Date(current.alert_date);
+            const maxDate = new Date(max.alert_date);
+            return currentDate > maxDate ? current : max;
+          });
+
+          const furthestAlertDate = new Date(furthestAlert.alert_date);
+          const endDateObj = new Date(end_date);
+
+          // Calculate the time difference in milliseconds
+          const timeDifference =
+            endDateObj.getTime() - furthestAlertDate.getTime();
+
+          // Calculate interval for each required alert
+          const interval = timeDifference / (requiredAlerts + 1);
+
+          // Generate required alerts
+          for (let i = 1; i <= requiredAlerts; i++) {
+            const newAlertTime = furthestAlertDate.getTime() + interval * i;
+            const newAlertDate = new Date(newAlertTime);
+            taskAlerts.push({
+              alert_date: newAlertDate.toISOString(),
+            });
+          }
+
+          // Sort alerts by date
+          taskAlerts.sort(
+            (a, b) =>
+              new Date(a.alert_date).getTime() -
+              new Date(b.alert_date).getTime()
+          );
+        }
+      }
     }
 
     // Create task with alerts
@@ -102,6 +157,7 @@ async function createTask(req, res, next) {
         description,
         assigned_to: assigned_to ? parseInt(assigned_to) : null,
         reporter_id: parseInt(reporter_id),
+        created_by: parseInt(created_by),
         start_date: new Date(start_date),
         end_date: new Date(end_date),
         status: status || "pending",
@@ -134,7 +190,7 @@ async function createTask(req, res, next) {
     if (
       task.assignee &&
       task.assignee.email &&
-      req.user?.id !== task.assigned_to
+      created_by !== task.assigned_to
     ) {
       try {
         const assigneeName =
@@ -162,12 +218,59 @@ async function createTask(req, res, next) {
     }
 
     // Send push notification to assignee
-    if (task.assignee && req.user?.id !== task.assigned_to) {
+    if (task.assignee && created_by !== task.assigned_to) {
       try {
         await PushNotificationService.notifyTaskCreated(task);
       } catch (pushError) {
         // Log push error but don't fail the task creation
         console.error("Failed to send push notification:", pushError);
+      }
+    }
+
+    // Send email and push notification to reporter if they're different from creator
+    if (created_by !== reporter_id && task.reporter && task.reporter.email) {
+      try {
+        const reporterName =
+          `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
+          task.reporter.username;
+        const assigneeName = task.assignee
+          ? `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
+            task.assignee.username
+          : "Unassigned";
+
+        const emailHtml = taskReporterSupervisionTemplate(
+          reporterName,
+          assigneeName,
+          task
+        );
+
+        await emailService.sendEmail({
+          to: task.reporter.email,
+          subject: `Supervision Task: ${task.title}`,
+          html: emailHtml,
+        });
+      } catch (emailError) {
+        console.error("Failed to send reporter supervision email:", emailError);
+      }
+
+      // Send push notification to reporter
+      try {
+        await PushNotificationService.sendToUser(task.reporter_id, {
+          title: "New Supervision Task",
+          body: `You have been assigned to supervise task "${task.title}"`,
+          icon: "/icons/notification-icon.png",
+          badge: "/icons/notification-badge.png",
+          data: {
+            type: "task_supervision",
+            taskId: task.id,
+            action: `/dashboard/tasks/${task.id}`,
+          },
+        });
+      } catch (pushError) {
+        console.error(
+          "Failed to send reporter supervision push notification:",
+          pushError
+        );
       }
     }
 
@@ -186,13 +289,16 @@ async function getTaskStats(req, res, next) {
   try {
     const [totalTasks, activeTasks, completedTasks, overdueTasks] =
       await Promise.all([
-        prisma.task.count(),
-        prisma.task.count({ where: { status: "active" } }),
-        prisma.task.count({ where: { status: "completed" } }),
+        prisma.task.count({ where: { is_archived: false } }),
+        prisma.task.count({ where: { status: "active", is_archived: false } }),
+        prisma.task.count({
+          where: { status: "completed", is_archived: false },
+        }),
         prisma.task.count({
           where: {
             status: { not: "completed" },
             end_date: { lt: new Date() },
+            is_archived: false,
           },
         }),
       ]);
@@ -227,13 +333,19 @@ async function getTasks(req, res, next) {
       reporter_id,
       sortBy = "created_at",
       sortOrder = "desc",
+      showArchived = false,
     } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    let where = {};
+    let where = { is_archived: false };
     const isManager =
       req?.user?.role?.toLowerCase() === "manager" ||
       req?.user?.role?.toLowerCase() === "employee";
+
+    // Super users can view archived tasks if requested
+    if (req?.user?.is_super_user && showArchived === "true") {
+      where.is_archived = true;
+    }
 
     // Manager role filter - can only see tasks they created or are assigned to
     if (isManager) {
@@ -427,10 +539,13 @@ async function updateTask(req, res, next) {
       title,
       description,
       assigned_to,
+      reporter_id,
       start_date,
       end_date,
       status,
+      hold_reason,
       taskAlerts = [],
+      alertFrequency,
     } = req.body;
 
     // Get current task with full details
@@ -448,6 +563,9 @@ async function updateTask(req, res, next) {
           },
         },
         reporter: {
+          select: { id: true, username: true, firstName: true, lastName: true },
+        },
+        creator: {
           select: { id: true, username: true, firstName: true, lastName: true },
         },
       },
@@ -478,6 +596,8 @@ async function updateTask(req, res, next) {
       changes.title = { old: currentTask.title, new: title };
     if (description !== undefined && description !== currentTask.description)
       changes.description = { old: currentTask.description, new: description };
+    if (reporter_id !== undefined && reporter_id !== currentTask.reporter_id)
+      changes.reporter_id = { old: currentTask.reporter_id, new: reporter_id };
     if (assigned_to !== undefined && assigned_to !== currentTask.assigned_to)
       changes.assigned_to = { old: currentTask.assigned_to, new: assigned_to };
     if (
@@ -492,6 +612,24 @@ async function updateTask(req, res, next) {
       changes.end_date = { old: currentTask.end_date, new: end_date };
     if (status !== undefined && status !== currentTask.status)
       changes.status = { old: currentTask.status, new: status };
+
+    // Check if reporter exists (if provided)
+    let newReporter = null;
+    if (reporter_id) {
+      newReporter = await prisma.user.findUnique({
+        where: { id: parseInt(reporter_id) },
+        select: {
+          id: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      });
+      if (!newReporter) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Reporter not found");
+      }
+    }
 
     // Check if assignee exists (if provided)
     let newAssignee = null;
@@ -531,13 +669,68 @@ async function updateTask(req, res, next) {
           );
         }
       }
+
+      // Validate alert frequency
+      if (alertFrequency !== undefined) {
+        const frequency = parseInt(alertFrequency);
+        const currentAlertsCount = taskAlerts.length;
+
+        if (frequency < currentAlertsCount) {
+          throw new ApiError(
+            StatusCodes.BAD_REQUEST,
+            "Alert frequency must be equal to the number of set alerts or more than it"
+          );
+        }
+
+        // If frequency > current alerts, generate missing alerts
+        if (frequency > currentAlertsCount) {
+          const requiredAlerts = frequency - currentAlertsCount;
+
+          // Find the furthest/most future alert date
+          const furthestAlert = taskAlerts.reduce((max, current) => {
+            const currentDate = new Date(current.alert_date);
+            const maxDate = new Date(max.alert_date);
+            return currentDate > maxDate ? current : max;
+          });
+
+          const furthestAlertDate = new Date(furthestAlert.alert_date);
+          const endDateObj = end_date
+            ? new Date(end_date)
+            : currentTask.end_date;
+
+          // Calculate the time difference in milliseconds
+          const timeDifference =
+            endDateObj.getTime() - furthestAlertDate.getTime();
+
+          // Calculate interval for each required alert
+          const interval = timeDifference / (requiredAlerts + 1);
+
+          // Generate required alerts
+          for (let i = 1; i <= requiredAlerts; i++) {
+            const newAlertTime = furthestAlertDate.getTime() + interval * i;
+            const newAlertDate = new Date(newAlertTime);
+            taskAlerts.push({
+              alert_date: newAlertDate.toISOString(),
+            });
+          }
+
+          // Sort alerts by date
+          taskAlerts.sort(
+            (a, b) =>
+              new Date(a.alert_date).getTime() -
+              new Date(b.alert_date).getTime()
+          );
+        }
+      }
     }
 
     const isStatusCompletedUpdate =
       changes.status && changes.status.new === "completed";
-    const isAssigneeTryingToUpdateThatHeDidntAssign =
+    const isTryingToUpdateStatus =
+      changes.status && changes.status.new !== currentTask.status;
+    const isAssigneeTryingToUpdateThatHeDidntCreate =
       req.user?.id === currentTask.assigned_to &&
-      req.user?.id !== currentTask.reporter_id;
+      req.user?.id !== currentTask.created_by;
 
     // Check if alerts were modified (compare count and dates)
     const alertsModified =
@@ -554,14 +747,14 @@ async function updateTask(req, res, next) {
               .sort((a, b) => a - b)
           ));
 
-    // if assignee trys to update more than status to completed, block it, but allow if he assigned that task to himself
+    // if assignee trys to update more than status and he didn't create that task, block it, but allow if he assigned that task to himself
     if (
       !req.user.is_super_user &&
-      ((isStatusCompletedUpdate &&
-        isAssigneeTryingToUpdateThatHeDidntAssign &&
+      ((isTryingToUpdateStatus &&
+        isAssigneeTryingToUpdateThatHeDidntCreate &&
         (Object.keys(changes).length > 1 || alertsModified)) ||
-        (!isStatusCompletedUpdate &&
-          isAssigneeTryingToUpdateThatHeDidntAssign &&
+        (!isTryingToUpdateStatus &&
+          isAssigneeTryingToUpdateThatHeDidntCreate &&
           (Object.keys(changes).length > 0 || alertsModified)))
     ) {
       throw new ApiError(
@@ -570,15 +763,50 @@ async function updateTask(req, res, next) {
       );
     }
 
+    // Check archive permission - only reporter, creator, or super_user can archive
+    let isArchiving = false;
+    if (req.body.is_archived !== undefined && req.body.is_archived === true) {
+      const canArchive =
+        req?.user?.is_super_user || req.user?.id !== currentTask.assigned_to;
+
+      if (!canArchive) {
+        throw new ApiError(
+          StatusCodes.FORBIDDEN,
+          "Only the reporter, task creator, or super user can archive tasks"
+        );
+      }
+      isArchiving = true;
+    }
+
     // Update only provided fields
     const data = {};
     if (title !== undefined) data.title = title.trim();
     if (description !== undefined) data.description = description;
+    if (reporter_id !== undefined) data.reporter_id = parseInt(reporter_id);
     if (assigned_to !== undefined)
       data.assigned_to = assigned_to ? parseInt(assigned_to) : null;
     if (start_date !== undefined) data.start_date = new Date(start_date);
     if (end_date !== undefined) data.end_date = new Date(end_date);
-    if (status !== undefined) data.status = status;
+    if (status !== undefined) {
+      data.status = status;
+      // If status is on_hold, capture hold details
+      if (status === "on_hold") {
+        if (!hold_reason) {
+          throw new ApiError(
+            StatusCodes.BAD_REQUEST,
+            "Hold reason is required when status is set to on_hold"
+          );
+        }
+        data.hold_reason = hold_reason;
+      } else {
+        data.hold_reason = null;
+      }
+    }
+
+    // Handle archive
+    if (isArchiving) {
+      data.is_archived = true;
+    }
 
     const task = await prisma.task.update({
       where: { id: parseInt(id) },
@@ -767,10 +995,101 @@ async function updateTask(req, res, next) {
       }
     }
 
+    // 2. If reporter changed, send notification to both old and new reporter
+    if (changes.reporter_id && newReporter && newReporter.email) {
+      // Send email to new reporter about supervision assignment
+      try {
+        const newReporterName =
+          `${newReporter.firstName} ${newReporter.lastName}`.trim() ||
+          newReporter.username;
+        const assigneeName = task.assignee
+          ? `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
+            task.assignee.username
+          : "Unassigned";
+
+        const emailHtml = taskReporterSupervisionTemplate(
+          newReporterName,
+          assigneeName,
+          task
+        );
+
+        await emailService.sendEmail({
+          to: newReporter.email,
+          subject: `Supervision Task Assigned: ${task.title}`,
+          html: emailHtml,
+        });
+      } catch (emailError) {
+        console.error("Failed to send new reporter email:", emailError);
+      }
+
+      // Send push notification to new reporter
+      try {
+        await PushNotificationService.sendToUser(parseInt(reporter_id), {
+          title: "New Supervision Task",
+          body: `You have been assigned to supervise task "${task.title}"`,
+          icon: "/icons/notification-icon.png",
+          badge: "/icons/notification-badge.png",
+          data: {
+            type: "task_supervision",
+            taskId: task.id,
+            action: `/dashboard/tasks/${task.id}`,
+          },
+        });
+      } catch (pushError) {
+        console.error(
+          "Failed to send new reporter push notification:",
+          pushError
+        );
+      }
+
+      // Send email to old reporter about being unassigned
+      if (currentTask.reporter && currentTask.reporter.email) {
+        try {
+          const oldReporterName =
+            `${currentTask.reporter.firstName} ${currentTask.reporter.lastName}`.trim() ||
+            currentTask.reporter.username;
+
+          const emailHtml = taskReporterUnassignmentTemplate(
+            oldReporterName,
+            newReporter.firstName + " " + newReporter.lastName,
+            task
+          );
+
+          await emailService.sendEmail({
+            to: currentTask.reporter.email,
+            subject: `Supervision Task Reassigned: ${task.title}`,
+            html: emailHtml,
+          });
+        } catch (emailError) {
+          console.error("Failed to send old reporter email:", emailError);
+        }
+
+        // Send push notification to old reporter
+        try {
+          await PushNotificationService.sendToUser(currentTask.reporter_id, {
+            title: "Supervision Task Reassigned",
+            body: `You are no longer supervising task "${task.title}"`,
+            icon: "/icons/notification-icon.png",
+            badge: "/icons/notification-badge.png",
+            data: {
+              type: "task_supervision_removed",
+              taskId: task.id,
+              action: `/dashboard/tasks/${task.id}`,
+            },
+          });
+        } catch (pushError) {
+          console.error(
+            "Failed to send old reporter push notification:",
+            pushError
+          );
+        }
+      }
+    }
+
     // 3. Send notification to reporter if task is marked as completed by assignee
     if (
       isStatusCompletedUpdate &&
-      isAssigneeTryingToUpdateThatHeDidntAssign &&
+      isAssigneeTryingToUpdateThatHeDidntCreate &&
       task.reporter &&
       task.reporter.email
     ) {
@@ -824,6 +1143,201 @@ async function updateTask(req, res, next) {
       }
     }
 
+    // 4. Send notification when task is put on hold (to reporter/supervisor)
+    if (
+      changes.status &&
+      changes.status.new === "on_hold" &&
+      task.hold_reason &&
+      isAssigneeTryingToUpdateThatHeDidntCreate
+    ) {
+      // Send email and push to reporter (supervisor) only
+      if (task.reporter && task.reporter.email) {
+        try {
+          const reporterName =
+            `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
+            task.reporter.username;
+
+          const emailHtml = taskHoldTemplate(reporterName, task);
+
+          await emailService.sendEmail({
+            to: task.reporter.email,
+            subject: `Task Put on Hold: ${task.title}`,
+            html: emailHtml,
+          });
+        } catch (emailError) {
+          console.error(
+            "Failed to send hold notification email to reporter:",
+            emailError
+          );
+        }
+
+        // Send push notification to reporter
+        try {
+          await PushNotificationService.sendToUser(task.reporter_id, {
+            title: "Task Put on Hold",
+            body: `Task "${task.title}" has been put on hold. Reason: ${task.hold_reason}`,
+            icon: "/icons/notification-icon.png",
+            badge: "/icons/notification-badge.png",
+            data: {
+              type: "task_on_hold",
+              taskId: task.id,
+              action: `/dashboard/tasks/${task.id}`,
+            },
+          });
+        } catch (pushError) {
+          console.error(
+            "Failed to send hold push notification to reporter:",
+            pushError
+          );
+        }
+      }
+    }
+
+    // 5. Send notification to reporter when assignee updates status
+    if (
+      isTryingToUpdateStatus &&
+      isAssigneeTryingToUpdateThatHeDidntCreate &&
+      task.reporter &&
+      task.reporter.email &&
+      changes.status &&
+      changes.status.new !== "completed" &&
+      changes.status.new !== "on_hold"
+    ) {
+      try {
+        const assigneeName =
+          `${task.assignee?.firstName} ${task.assignee?.lastName}`.trim() ||
+          task.assignee?.username ||
+          "Someone";
+        const reporterName =
+          `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
+          task.reporter.username;
+
+        const statusText = changes.status.new
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (l) => l.toUpperCase());
+
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+            <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h2 style="color: #333; margin-bottom: 20px;">Task Status Updated</h2>
+              
+              <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+                Hello <strong>${reporterName}</strong>,
+              </p>
+              
+              <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
+                <strong>${assigneeName}</strong> has updated the status of a task you are supervising. Here are the details:
+              </p>
+              
+              <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #2196F3; margin-bottom: 30px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 12px 0; font-weight: bold; color: #333; width: 120px;">Task Title:</td>
+                    <td style="padding: 12px 0; color: #666;">${task.title}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Updated By:</td>
+                    <td style="padding: 12px 0; color: #666;"><strong>${assigneeName}</strong></td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 12px 0; font-weight: bold; color: #333;">New Status:</td>
+                    <td style="padding: 12px 0; color: #2196F3; font-weight: bold;">${statusText}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Update Time:</td>
+                    <td style="padding: 12px 0; color: #666;">${new Date().toLocaleString()}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                Please log in to the system to view more details about this task.
+              </p>
+            </div>
+          </div>
+        `;
+
+        await emailService.sendEmail({
+          to: task.reporter.email,
+          subject: `Task Status Updated: ${task.title}`,
+          html: emailHtml,
+        });
+      } catch (emailError) {
+        console.error(
+          "Failed to send status update email to reporter:",
+          emailError
+        );
+      }
+
+      // Send push notification to reporter
+      try {
+        const statusText = changes.status.new
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (l) => l.toUpperCase());
+
+        await PushNotificationService.sendToUser(task.reporter_id, {
+          title: "Task Status Updated",
+          body: `"${task.title}" status changed to: ${statusText}`,
+          icon: "/icons/notification-icon.png",
+          badge: "/icons/notification-badge.png",
+          data: {
+            type: "task_status_updated",
+            taskId: task.id,
+            action: `/dashboard/tasks/${task.id}`,
+          },
+        });
+      } catch (pushError) {
+        console.error(
+          "Failed to send status update push notification to reporter:",
+          pushError
+        );
+      }
+    }
+
+    // 6. Send notification when task is archived (to assignee)
+    if (isArchiving && task.assignee && task.assignee.email) {
+      try {
+        const assigneeName =
+          `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
+          task.assignee.username;
+
+        const emailHtml = taskArchiveTemplate(assigneeName, task);
+
+        await emailService.sendEmail({
+          to: task.assignee.email,
+          subject: `Task Archived: ${task.title}`,
+          html: emailHtml,
+        });
+      } catch (emailError) {
+        console.error(
+          "Failed to send task archive email to assignee:",
+          emailError
+        );
+      }
+
+      // Send push notification to assignee
+      if (task.assignee) {
+        try {
+          await PushNotificationService.sendToUser(task.assigned_to, {
+            title: "Task Archived",
+            body: `Task "${task.title}" has been archived and removed from your active tasks`,
+            icon: "/icons/notification-icon.png",
+            badge: "/icons/notification-badge.png",
+            data: {
+              type: "task_archived",
+              taskId: task.id,
+              action: `/dashboard/tasks/${task.id}`,
+            },
+          });
+        } catch (pushError) {
+          console.error(
+            "Failed to send task archive push notification:",
+            pushError
+          );
+        }
+      }
+    }
+
     res.json({
       success: true,
       message: "Task updated successfully",
@@ -851,6 +1365,14 @@ async function deleteTask(req, res, next) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
         "Not authorized to delete this task"
+      );
+    }
+
+    // Check if task is archived before allowing deletion
+    if (!task.is_archived) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        "Only archived tasks can be deleted. Please archive the task first."
       );
     }
 

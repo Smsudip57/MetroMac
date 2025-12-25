@@ -21,6 +21,13 @@ const PIE_SIZES = {
   lg: { width: 49, height: 49, innerRadius: 18, outerRadius: 24 },
 };
 
+// Mobile pie sizes (smaller for mobile devices)
+const PIE_SIZES_MOBILE = {
+  sm: { width: 20, height: 20, innerRadius: 7, outerRadius: 10 },
+  md: { width: 24, height: 24, innerRadius: 9, outerRadius: 12 },
+  lg: { width: 40, height: 40, innerRadius: 16, outerRadius: 20 },
+};
+
 // Base type for a single stat card
 interface BaseStatCardItem {
   label: string;
@@ -139,6 +146,7 @@ export default function CustomStatsCard({
   }
   // Pie size
   const size = PIE_SIZES[pieSize] || PIE_SIZES.md;
+  const sizeMobile = PIE_SIZES_MOBILE[pieSize] || PIE_SIZES_MOBILE.lg;
 
   const bgClasses = [
     "!from-primary/10",
@@ -223,10 +231,10 @@ export default function CustomStatsCard({
                           <div className="text-sm text-gray-600 dark:text-text_highlight  text-nowrap">
                             {(item as any)?.label}
                           </div>
-                         
-                            <div className="mt-2 text-3xl font-semibold text-text">
-                              {(item as any)?.value}
-                            </div>
+
+                          <div className="mt-2 text-3xl font-semibold text-text">
+                            {(item as any)?.value}
+                          </div>
                         </div>
                       </div>
 
@@ -397,13 +405,13 @@ export default function CustomStatsCard({
                           Acquisition needs attention
                         </div>
                       </div>
-                       {typeof (item as any)?.percentageChange === "number" ? (
-                          ((item as any)?.percentageChange ?? 0) >= 0 ? (
-                            <TrendingUp className="w-6 h-6 text-success" />
-                          ) : (
-                            <TrendingDown className="w-6 h-6 text-warning" />
-                          )
-                        ) : null}
+                      {typeof (item as any)?.percentageChange === "number" ? (
+                        ((item as any)?.percentageChange ?? 0) >= 0 ? (
+                          <TrendingUp className="w-6 h-6 text-success" />
+                        ) : (
+                          <TrendingDown className="w-6 h-6 text-warning" />
+                        )
+                      ) : null}
                     </div>
                   </div>
                 </ContainerWrapper>
@@ -420,7 +428,7 @@ export default function CustomStatsCard({
   return (
     <>
       <div
-        className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 ${containerClass}`}
+        className={`grid grid-cols-2 lg:grid-cols-4 gap-3 sm+:gap-4 ${containerClass}`}
       >
         {cards?.map((item: StatCardItem, index: number) => {
           {
@@ -441,83 +449,156 @@ export default function CustomStatsCard({
             return (
               <ContainerWrapper
                 key={`${index}`}
-                className={`space-y-0 !p-3 ${
+                className={`space-y-0 p-2 sm+:!p-3 ${
                   bgHighlight ? `!bg-gradient-to-r to-white ${bgColor}` : ""
                 } `}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between gap-2 sm+:gap-3">
+                  <div className="flex items-center gap-4 sm+:gap-6">
                     {"showPie" in item &&
                       item?.showPie &&
                       "total" in item &&
                       item?.total && (
-                        <div
-                          className=" overflow-hidden flex items-center justify-center flex-shrink-0"
-                          style={{ width: size?.width, height: size?.height }}
-                        >
-                          <ResponsiveContainer
-                            width={size?.width}
-                            height={size?.height}
+                        <>
+                          {/* Mobile Pie */}
+                          <div
+                            className="sm+:hidden overflow-hidden flex items-center justify-center flex-shrink-0"
+                            style={{
+                              width: sizeMobile?.width,
+                              height: sizeMobile?.height,
+                            }}
                           >
-                            <PieChart>
-                              <Pie
-                                data={[
-                                  {
-                                    name: (item as any)?.label,
-                                    value: (item as any)?.value,
-                                  },
-                                  {
-                                    name: "Other",
-                                    value: Math.max(
-                                      (item as any).total -
-                                        ((item as any)?.value || 0),
-                                      0
-                                    ),
-                                  },
-                                ]}
-                                dataKey="value"
-                                innerRadius={size?.innerRadius}
-                                outerRadius={size?.outerRadius}
-                                startAngle={90}
-                                endAngle={-270}
-                                cornerRadius={6}
-                                stroke="none"
-                                label={({ cx, cy }) => (
-                                  <text
-                                    x={cx}
-                                    y={cy}
-                                    textAnchor="middle"
-                                    dominantBaseline="middle"
-                                    fontSize={size.width > 36 ? 10 : 8}
-                                    fill="var(--color-text)"
-                                    fontWeight="bold"
-                                  >
-                                    {Math.round(
-                                      (((item as any)?.value || 0) /
-                                        ((item as any).total || 1)) *
-                                        100
-                                    )}
-                                    %
-                                  </text>
-                                )}
-                                labelLine={false}
-                              >
-                                <Cell
-                                  key="main"
-                                  fill={safeGetColor(
-                                    (item as any)?.bg,
-                                    COLORS?.[index % (COLORS?.length || 1)]
+                            <ResponsiveContainer
+                              width={sizeMobile?.width}
+                              height={sizeMobile?.height}
+                            >
+                              <PieChart>
+                                <Pie
+                                  data={[
+                                    {
+                                      name: (item as any)?.label,
+                                      value: (item as any)?.value,
+                                    },
+                                    {
+                                      name: "Other",
+                                      value: Math.max(
+                                        (item as any).total -
+                                          ((item as any)?.value || 0),
+                                        0
+                                      ),
+                                    },
+                                  ]}
+                                  dataKey="value"
+                                  innerRadius={sizeMobile?.innerRadius}
+                                  outerRadius={sizeMobile?.outerRadius}
+                                  startAngle={90}
+                                  endAngle={-270}
+                                  cornerRadius={6}
+                                  stroke="none"
+                                  label={({ cx, cy }) => (
+                                    <text
+                                      x={cx}
+                                      y={cy}
+                                      textAnchor="middle"
+                                      dominantBaseline="middle"
+                                      fontSize={sizeMobile.width > 24 ? 8 : 6}
+                                      fill="var(--color-text)"
+                                      fontWeight="bold"
+                                    >
+                                      {Math.round(
+                                        (((item as any)?.value || 0) /
+                                          ((item as any).total || 1)) *
+                                          100
+                                      )}
+                                      %
+                                    </text>
                                   )}
-                                />
-                                {/* <Cell key="rest" fill={} /> */}
-                                <Cell
-                                  key="rest"
-                                  fill={isDark ? getColors().bg : "#d4d4d4"}
-                                />
-                              </Pie>
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
+                                  labelLine={false}
+                                >
+                                  <Cell
+                                    key="main"
+                                    fill={safeGetColor(
+                                      (item as any)?.bg,
+                                      COLORS?.[index % (COLORS?.length || 1)]
+                                    )}
+                                  />
+                                  <Cell
+                                    key="rest"
+                                    fill={isDark ? getColors().bg : "#d4d4d4"}
+                                  />
+                                </Pie>
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+
+                          {/* Desktop Pie */}
+                          <div
+                            className="hidden sm+:flex overflow-hidden items-center justify-center flex-shrink-0"
+                            style={{ width: size?.width, height: size?.height }}
+                          >
+                            <ResponsiveContainer
+                              width={size?.width}
+                              height={size?.height}
+                            >
+                              <PieChart>
+                                <Pie
+                                  data={[
+                                    {
+                                      name: (item as any)?.label,
+                                      value: (item as any)?.value,
+                                    },
+                                    {
+                                      name: "Other",
+                                      value: Math.max(
+                                        (item as any).total -
+                                          ((item as any)?.value || 0),
+                                        0
+                                      ),
+                                    },
+                                  ]}
+                                  dataKey="value"
+                                  innerRadius={size?.innerRadius}
+                                  outerRadius={size?.outerRadius}
+                                  startAngle={90}
+                                  endAngle={-270}
+                                  cornerRadius={6}
+                                  stroke="none"
+                                  label={({ cx, cy }) => (
+                                    <text
+                                      x={cx}
+                                      y={cy}
+                                      textAnchor="middle"
+                                      dominantBaseline="middle"
+                                      fontSize={size.width > 36 ? 10 : 8}
+                                      fill="var(--color-text)"
+                                      fontWeight="bold"
+                                    >
+                                      {Math.round(
+                                        (((item as any)?.value || 0) /
+                                          ((item as any).total || 1)) *
+                                          100
+                                      )}
+                                      %
+                                    </text>
+                                  )}
+                                  labelLine={false}
+                                >
+                                  <Cell
+                                    key="main"
+                                    fill={safeGetColor(
+                                      (item as any)?.bg,
+                                      COLORS?.[index % (COLORS?.length || 1)]
+                                    )}
+                                  />
+                                  <Cell
+                                    key="rest"
+                                    fill={isDark ? getColors().bg : "#d4d4d4"}
+                                  />
+                                </Pie>
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </>
                       )}
                     {"showIcon" in item &&
                       item?.showIcon &&
@@ -528,7 +609,7 @@ export default function CustomStatsCard({
                         </div>
                       )}
                     <div className="flex-1 min-w-full">
-                      <div className="text-sm font-semibold text-gray-600 dark:text-text_highlight leading-tight text-nowrap">
+                      <div className="text-xs sm+:text-sm font-semibold text-gray-600 dark:text-text_highlight leading-tight text-nowrap">
                         {(item as any)?.label}
                       </div>
                       {/* <div className=""> */}
@@ -576,7 +657,7 @@ export default function CustomStatsCard({
                           </div>
                         </div>
                       ) : (
-                        <div className="mt-0.5 text-xl font-bold text-text">
+                        <div className="mt-0.5 text-lg sm+:text-xl font-bold text-text">
                           {(item as any)?.value}
                         </div>
                       )}
@@ -604,7 +685,7 @@ export default function CustomStatsCard({
                     </div>
                   </div>
 
-                  {!(
+                  {/* {!(
                     "showProgress" in item &&
                     item.showProgress &&
                     "horizontal" in item &&
@@ -616,7 +697,7 @@ export default function CustomStatsCard({
                       "graphData" in item &&
                       (item as any)?.graphData ? (
                         // Small line chart with area fill
-                        <div className="w-16 h-12 overflow-hidden">
+                        <div className="w-12 sm+:w-16 h-10 sm+:h-12 overflow-hidden">
                           <ResponsiveContainer width="100%" height="100%">
                             <AreaChart
                               data={(item as any).graphData}
@@ -674,7 +755,7 @@ export default function CustomStatsCard({
                           item.horizontal
                         ) && (
                           <>
-                            <div className="w-1.5 h-12 rounded bg-neutral/10 overflow-hidden flex flex-col justify-end">
+                            <div className="w-1.5 h-8 sm+:h-12 rounded bg-neutral/10 overflow-hidden flex flex-col justify-end">
                               <div
                                 className="w-1.5 rounded transition-all duration-500"
                                 style={{
@@ -712,7 +793,7 @@ export default function CustomStatsCard({
                         )
                       )}
                     </div>
-                  )}
+                  )} */}
                 </div>
               </ContainerWrapper>
             );

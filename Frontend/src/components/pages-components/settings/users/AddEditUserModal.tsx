@@ -238,7 +238,7 @@ export default function AddEditUserModal({
   const isLoading = editingUser ? isUpdating : isCreating;
 
   return (
-    <div className="flex items-center justify-between gap-4 mb-4">
+    <div className="flex items-center justify-between gap-4 sm+:mb-4">
       <CustomModal
         contentClassName="min-w-[600px]"
         triggerText={<span className="flex items-center gap-1">Add New</span>}

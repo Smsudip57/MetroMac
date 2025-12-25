@@ -22,6 +22,15 @@ import {
 import { Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+// Status Map - Maps enum values to readable labels
+const STATUS_MAP: Record<string, string> = {
+  pending: "Pending",
+  active: "Active",
+  on_hold: "On Hold",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
 export default function ViewTasks() {
   const searchParams = useSearchParams();
   const taskId = searchParams.get("id");
@@ -163,8 +172,20 @@ export default function ViewTasks() {
               {/* Status */}
               <FieldWrapper>
                 <FieldLabel>Status</FieldLabel>
-                <TableStatus statusName={task.status} />
+                <TableStatus
+                  statusName={STATUS_MAP[task.status] || task.status}
+                />
               </FieldWrapper>
+
+              {/* Hold Reason - Show only if task is on hold */}
+              {task.status === "on_hold" && task.hold_reason && (
+                <FieldWrapper>
+                  <FieldLabel>Hold Reason</FieldLabel>
+                  <div className="px-4 py-2.5 bg-warning/5 border border-warning/20 rounded-xl">
+                    <p className="text-sm text-text">{task.hold_reason}</p>
+                  </div>
+                </FieldWrapper>
+              )}
 
               {/* Dates */}
               <div className="grid grid-cols-2 gap-2">
@@ -211,7 +232,7 @@ export default function ViewTasks() {
               )}
 
               {/* Alerts */}
-              {task.taskAlerts && task.taskAlerts.length > 0 && (
+              {/* {task.taskAlerts && task.taskAlerts.length > 0 && (
                 <FieldWrapper>
                   <FieldLabel>Alerts</FieldLabel>
                   <div className="flex flex-wrap gap-2 px-4 py-2.5 bg-transparent border border-border rounded-xl">
@@ -232,7 +253,7 @@ export default function ViewTasks() {
                     ))}
                   </div>
                 </FieldWrapper>
-              )}
+              )} */}
             </div>
           </ContainerWrapper>
 
@@ -289,7 +310,9 @@ export default function ViewTasks() {
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                <p className="text-xs text-text_highlight">No files attached yet</p>
+                <p className="text-xs text-text_highlight">
+                  No files attached yet
+                </p>
               </div>
             </ContainerWrapper>
           ) : null}
@@ -393,7 +416,9 @@ export default function ViewTasks() {
                       <input
                         type="file"
                         multiple
-                        onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                        onChange={(e) =>
+                          e.target.files && handleFileUpload(e.target.files)
+                        }
                         disabled={uploadingFiles}
                         className="hidden"
                         id="comment-file-input"
@@ -426,7 +451,9 @@ export default function ViewTasks() {
                                 d="M12 4v16m8-8H4"
                               />
                             </svg>
-                            <span className="text-xs text-text">Attach File</span>
+                            <span className="text-xs text-text">
+                              Attach File
+                            </span>
                           </>
                         )}
                       </label>

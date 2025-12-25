@@ -14,6 +14,7 @@ import importExportRoutes from "./app/routes/importExport.js";
 import emailRoutes from "./app/routes/emails.js";
 import pushNotificationRoutes from "./app/routes/pushNotifications.js";
 import ApiError from "./errors/ApiError.js";
+import AlertSchedulerService from "./app/services/alertSchedulerService.js";
 
 // Load environment variables
 dotenv.config();
@@ -90,6 +91,9 @@ async function startServer() {
   try {
     await prisma.$connect();
     console.log("Successfully connected to the database");
+
+    // Initialize alert scheduler - runs every minute
+    AlertSchedulerService.init();
 
     // Seed all data on startup (includes quotations, invoices, projects, etc.)
     // await seedSampleQuotations();

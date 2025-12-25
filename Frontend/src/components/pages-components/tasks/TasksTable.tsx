@@ -4,7 +4,11 @@ import { useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatDate } from "@/lib/utils";
 import { DynamicTable } from "@/components/reuseable/Shared/DynamicTable";
-import { TableDoubleHoriZontalItemsWithImage, TableSingleItem, TableStatus } from "@/components/shared/table/TableItems";
+import {
+  TableDoubleHoriZontalItemsWithImage,
+  TableSingleItem,
+  TableStatus,
+} from "@/components/shared/table/TableItems";
 import ConfirmModal from "@/components/reuseable/Shared/ConfirmModal";
 import { toast } from "react-hot-toast";
 import {
@@ -16,7 +20,9 @@ import {
 import { ControlledPopover } from "@/components/ui/popover";
 import ContainerWrapper from "@/components/reuseable/wrapper/ContainerWrapper";
 import { X } from "lucide-react";
+import { Archive } from "lucide-react";
 import { FormProvider, useForm } from "react-hook-form";
+import FormInputHF from "@/components/reuseable/forms/WithHookForm/FormInputHF";
 import SingleDatePickerHF from "@/components/reuseable/forms/WithHookForm/SingleDatePickerHF";
 import { Button } from "@/components/ui/button";
 
@@ -24,12 +30,14 @@ type TasksTableProps = {
   searchTerm: string;
   statusFilter?: string;
   onEditTask?: (task: any) => void;
+  type?: "archive" | "normal"; // 'archive' for archive mode, 'normal' for delete mode
 };
 
 export default function TasksTable({
   searchTerm,
   statusFilter,
   onEditTask,
+  type = "normal",
 }: TasksTableProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
@@ -41,19 +49,31 @@ export default function TasksTable({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [taskToArchive, setTaskToArchive] = useState<any>(null);
+  const [isArchiving, setIsArchiving] = useState(false);
   const [alertsPopupOpen, setAlertsPopupOpen] = useState(false);
   const [selectedAlerts, setSelectedAlerts] = useState<any[]>([]);
   const [alertsButtonElement, setAlertsButtonElement] =
     useState<HTMLButtonElement | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [isAddingAlert, setIsAddingAlert] = useState(false);
+  const [alertMode, setAlertMode] = useState<"manual" | "auto">("manual");
 
   // Alert form for popup
   const alertFormMethods = useForm({
     defaultValues: {
       alert_date: "",
+      alert_frequency: 0,
     },
   });
+
+  // Auto-update alert frequency to match alert count
+  React.useEffect(() => {
+    if (alertMode === "manual") {
+      alertFormMethods.setValue("alert_frequency", selectedAlerts.length);
+    }
+  }, [selectedAlerts.length, alertFormMethods, alertMode]);
 
   const debouncedSearch = useDebounce(searchTerm, 400);
 
@@ -66,6 +86,7 @@ export default function TasksTable({
       status: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
       sortBy: sortConfig?.key,
       sortOrder: sortConfig?.direction,
+      showArchived: type === "archive" ? "true" : undefined,
     }) || {};
 
   const [deleteTask] = useDeleteTaskMutation?.() || [];
@@ -85,7 +106,7 @@ export default function TasksTable({
       header: "S/L",
       cell: (item: any, index: number) => (
         <span className="font-medium text-[#747382]">
-          {(currentPage - 1) * pageSize + index + 1}
+          {(currentPage - 1) * pageSize + index}
         </span>
       ),
       width: 60,
@@ -94,7 +115,13 @@ export default function TasksTable({
       key: "title",
       header: "Task Title",
       sortable: true,
-      cell: (item: any) => <TableSingleItem className="inline-block !min-w-28" value={item.title} onClick={() => handleView(item)} />,
+      cell: (item: any) => (
+        <TableSingleItem
+          className="inline-block !min-w-28"
+          value={item.title}
+          onClick={() => handleView(item)}
+        />
+      ),
     },
     {
       key: "description",
@@ -184,6 +211,9 @@ export default function TasksTable({
               setAlertsButtonElement(e.currentTarget);
               setSelectedAlerts(item.taskAlerts || []);
               setSelectedTaskId(item.id);
+              setAlertMode("manual"); // Reset to manual mode when opening
+              alertFormMethods.setValue("alert_frequency", alertCount);
+              alertFormMethods.resetField("alert_date");
               setAlertsPopupOpen(true);
             }}
             className={`inline-flex items-center gap-2 px-3 py-1.5 border rounded-full transition-colors ${
@@ -209,8 +239,15 @@ export default function TasksTable({
 
   // Handle delete task
   const handleDelete = async (item: any) => {
-    setTaskToDelete(item);
-    setShowConfirmModal(true);
+    if (type === "archive") {
+      // Archive mode - show delete confirmation
+      setTaskToDelete(item);
+      setShowConfirmModal(true);
+    } else {
+      // Normal mode - show archive confirmation
+      setTaskToArchive(item);
+      setShowArchiveModal(true);
+    }
   };
 
   // Confirm delete handler
@@ -230,6 +267,26 @@ export default function TasksTable({
     }
   };
 
+  // Confirm archive handler
+  const handleConfirmArchive = async () => {
+    if (!taskToArchive) return;
+
+    setIsArchiving(true);
+    try {
+      await updateTask?.({
+        id: taskToArchive.id,
+        is_archived: true,
+      })?.unwrap?.();
+      toast.success("Task archived successfully");
+      setShowArchiveModal(false);
+      setTaskToArchive(null);
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to archive task");
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
   // Handle edit
   const handleEdit = (item: any) => {
     if (typeof onEditTask === "function") {
@@ -245,7 +302,7 @@ export default function TasksTable({
   // Handle removing an alert from popup
   const handleRemoveAlert = async (index: number) => {
     const alertToDelete = selectedAlerts[index];
-    
+
     if (!alertToDelete?.id) {
       // If alert doesn't have an ID yet (newly added), just remove from UI
       setSelectedAlerts(selectedAlerts.filter((_, i) => i !== index));
@@ -266,6 +323,7 @@ export default function TasksTable({
   // Handle adding alert from popup
   const handleAddAlertFromPopup = async () => {
     const alertDate = alertFormMethods.getValues("alert_date");
+    const alertFrequency = alertFormMethods.getValues("alert_frequency") || 0;
 
     if (!alertDate || !alertDate.trim()) {
       toast.error("Alert date & time is required");
@@ -301,6 +359,7 @@ export default function TasksTable({
         taskAlerts: updatedAlerts.map((alert) => ({
           alert_date: alert.alert_date,
         })),
+        alertFrequency: alertFrequency > 0 ? alertFrequency : undefined,
       })?.unwrap?.();
 
       setSelectedAlerts(updatedAlerts);
@@ -313,9 +372,54 @@ export default function TasksTable({
     }
   };
 
+  // Handle auto-generating alerts by frequency
+  const handleAutoGenerateAlerts = async () => {
+    const alertFrequency = alertFormMethods.getValues("alert_frequency") || 0;
+
+    if (!alertFrequency || alertFrequency <= 0) {
+      toast.error("Please enter a valid frequency number");
+      return;
+    }
+
+    setIsAddingAlert(true);
+    try {
+      const taskToUpdate = data?.data?.find(
+        (t: any) => t.id === selectedTaskId
+      );
+      if (!taskToUpdate) {
+        toast.error("Task not found");
+        return;
+      }
+
+      // Send update with frequency but no manual alerts (auto-generate mode)
+      await updateTask?.({
+        id: selectedTaskId,
+        title: taskToUpdate.title,
+        description: taskToUpdate.description,
+        status: taskToUpdate.status,
+        assigned_to: taskToUpdate.assigned_to,
+        start_date: taskToUpdate.start_date,
+        end_date: taskToUpdate.end_date,
+        taskAlerts: [], // Empty array - system will auto-generate all
+        alertFrequency: alertFrequency,
+      })?.unwrap?.();
+
+      // Refresh alerts from server
+      toast.success(`Successfully generated ${alertFrequency} alerts`);
+      alertFormMethods.resetField("alert_frequency");
+
+      // Optionally refetch or close popup
+      setAlertsPopupOpen(false);
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to generate alerts");
+    } finally {
+      setIsAddingAlert(false);
+    }
+  };
+
   return (
     <>
-      <div className="space-y-6">
+      <div className={`space-y-6 ${type === "archive" ? "!mt-0 sm+:!mt-0 xl:!mt-6" : " mt-4 sm+:!mt-6" }`}>
         <div className="space-y-6">
           {/* Tasks Table */}
           <div className="bg-bg rounded-lg">
@@ -327,7 +431,7 @@ export default function TasksTable({
               options={{
                 actions: {
                   view: true,
-                  edit: true,
+                  edit: type !== "archive",
                   delete: true,
                 },
               }}
@@ -336,6 +440,13 @@ export default function TasksTable({
               onDelete={handleDelete}
               sortConfig={sortConfig}
               onSort={handleSort}
+              icons={
+                type === "archive"
+                  ? undefined
+                  : {
+                      delete: <Archive size={16} />,
+                    }
+              }
               pagination={{
                 enabled: true,
                 currentPage,
@@ -445,31 +556,83 @@ export default function TasksTable({
             {/* Divider */}
             <div className="border-t border-border flex-shrink-0 !mt-0"></div>
 
-            {/* Add New Alert Section */}
-            <div className="px-4 py-3 bg-gray-50/50 flex-shrink-0 !mt-0">
-              <p className="text-xs font-semibold text-text mb-.5 uppercase tracking-wide">
-                Add Alert
-              </p>
+            {/* Mode Toggle Tabs */}
+            <div className="px-4 pt-3 pb-0 bg-gray-50/50 flex-shrink-0 !mt-0">
+              <div className="flex gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setAlertMode("manual")}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
+                    alertMode === "manual"
+                      ? "bg-primary text-white"
+                      : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                  }`}
+                >
+                  Manual Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAlertMode("auto")}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
+                    alertMode === "auto"
+                      ? "bg-primary text-white"
+                      : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                  }`}
+                >
+                  Auto-Generate
+                </button>
+              </div>
+            </div>
+            {/* Conditional Form based on Mode */}
+            <div className="px-4 py-3 pt-0 bg-gray-50/50 flex-shrink-0 !mt-0">
               <FormProvider {...alertFormMethods}>
-                <div className="flex items-end gap-2">
-                  <div className="flex-1">
-                    <SingleDatePickerHF
-                      name="alert_date"
-                      label=""
-                      placeholder="Select date & time"
-                      withTime={true}
-                    />
+                {alertMode === "manual" ? (
+                  // Manual Mode: Date picker only
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <SingleDatePickerHF
+                        name="alert_date"
+                        label="Add Alert"
+                        placeholder="Select"
+                        withTime={true}
+                        labelClassName="mb-2"
+                      />
+                    </div>
+
+                    <Button
+                      type="button"
+                      onClick={handleAddAlertFromPopup}
+                      size="sm"
+                      disabled={isAddingAlert}
+                      className="flex-shrink-0 rounded-2xl"
+                    >
+                      {isAddingAlert ? "Adding..." : "Add"}
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    onClick={handleAddAlertFromPopup}
-                    size="sm"
-                    disabled={isAddingAlert}
-                    className="flex-shrink-0 rounded-2xl"
-                  >
-                    {isAddingAlert ? "Adding..." : "Add"}
-                  </Button>
-                </div>
+                ) : (
+                  // Auto-Generate Mode: Only frequency input
+                  <div className="space-y-3">
+                    <div className="w-full">
+                      <FormInputHF
+                        name="alert_frequency"
+                        label="Number of Alerts to Generate"
+                        type="number"
+                        placeholder="e.g., 5"
+                        className="mt-0"
+                        min={0}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={handleAutoGenerateAlerts}
+                      disabled={isAddingAlert}
+                      className="w-full rounded-2xl"
+                      size="sm"
+                    >
+                      {isAddingAlert ? "Generating..." : "Generate Alerts"}
+                    </Button>
+                  </div>
+                )}
               </FormProvider>
             </div>
           </ContainerWrapper>
@@ -497,6 +660,29 @@ export default function TasksTable({
         confirmText="Delete Task"
         cancelText="Cancel"
         isLoading={isDeleting}
+      />
+
+      <ConfirmModal
+        open={showArchiveModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowArchiveModal(false);
+            setTaskToArchive(null);
+          }
+        }}
+        onConfirm={handleConfirmArchive}
+        title="Archive Task"
+        message={
+          <>
+            Are you sure you want to archive task:{" "}
+            <strong>{taskToArchive?.title}</strong>? <br />
+            Archived tasks will be moved out of your active task list.
+          </>
+        }
+        type="warning"
+        confirmText="Archive Task"
+        cancelText="Cancel"
+        isLoading={isArchiving}
       />
     </>
   );
