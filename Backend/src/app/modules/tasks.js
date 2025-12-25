@@ -675,13 +675,6 @@ async function updateTask(req, res, next) {
         const frequency = parseInt(alertFrequency);
         const currentAlertsCount = taskAlerts.length;
 
-        if (frequency < currentAlertsCount) {
-          throw new ApiError(
-            StatusCodes.BAD_REQUEST,
-            "Alert frequency must be equal to the number of set alerts or more than it"
-          );
-        }
-
         // If frequency > current alerts, generate missing alerts
         if (frequency > currentAlertsCount) {
           const requiredAlerts = frequency - currentAlertsCount;
