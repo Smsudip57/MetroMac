@@ -107,8 +107,7 @@ async function createTask(req, res, next) {
         if (currentAlertsCount === 0) {
           const startDateObj = new Date(start_date);
           const endDateObj = new Date(end_date);
-          const timeDifference =
-            endDateObj.getTime() - startDateObj.getTime();
+          const timeDifference = endDateObj.getTime() - startDateObj.getTime();
 
           // Calculate interval for each alert
           const interval = timeDifference / (frequency + 1);
@@ -1675,6 +1674,24 @@ async function attachAttachmentToTask(req, res, next) {
 
     const task = await prisma.task.findUnique({
       where: { id: parseInt(taskId) },
+      include: {
+        assignee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        reporter: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
     });
 
     if (!task) {
@@ -1715,6 +1732,126 @@ async function attachAttachmentToTask(req, res, next) {
         },
       },
     });
+
+    // Determine who attached the file and send notification accordingly
+    const isReporterAttaching = req.user.id === task.reporter_id;
+    const isAssigneeAttaching = req.user.id === task.assigned_to;
+
+    // If reporter attached file, notify assignee/employee
+    if (isReporterAttaching && task.assignee && task.assignee.email) {
+      try {
+        const assigneeName =
+          `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
+          "Team Member";
+
+        const emailSubject = `New File Attached to Task: ${task.title}`;
+        const emailHtml = `
+          <p>Hello ${assigneeName},</p>
+          <p>A file has been attached to your task:</p>
+          <p><strong>Task:</strong> ${task.title}</p>
+          <p><strong>File:</strong> ${file_name}</p>
+          <p>Please check the task details for more information.</p>
+        `;
+
+        await emailService.sendEmail({
+          to: task.assignee.email,
+          subject: emailSubject,
+          html: emailHtml,
+        });
+
+        console.log(
+          `[AttachmentNotif] Email sent to assignee (${task.assignee.email})`
+        );
+      } catch (emailError) {
+        console.error(
+          "[AttachmentNotif] Failed to send email to assignee:",
+          emailError.message
+        );
+      }
+
+      // Send push notification to assignee
+      try {
+        await PushNotificationService.sendToUser(task.assignee_id, {
+          title: "File Attached to Task",
+          body: `"${task.title}" - ${file_name}`,
+          icon: "/icons/notification-icon.png",
+          badge: "/icons/notification-badge.png",
+          data: {
+            taskId: task.id,
+            action: "fileAttached",
+            taskTitle: task.title,
+            fileName: file_name,
+          },
+        });
+
+        console.log(
+          `[AttachmentNotif] Push notification sent to assignee (ID: ${task.assignee_id})`
+        );
+      } catch (pushError) {
+        console.error(
+          "[AttachmentNotif] Failed to send push to assignee:",
+          pushError.message
+        );
+      }
+    }
+
+    // If assignee attached file, notify reporter
+    if (isAssigneeAttaching && task.reporter && task.reporter.email) {
+      try {
+        const reporterName =
+          `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
+          "Manager";
+
+        const emailSubject = `New File Attached to Task: ${task.title}`;
+        const emailHtml = `
+          <p>Hello ${reporterName},</p>
+          <p>A file has been attached to a task you created:</p>
+          <p><strong>Task:</strong> ${task.title}</p>
+          <p><strong>File:</strong> ${file_name}</p>
+          <p>Please check the task details for more information.</p>
+        `;
+
+        await emailService.sendEmail({
+          to: task.reporter.email,
+          subject: emailSubject,
+          html: emailHtml,
+        });
+
+        console.log(
+          `[AttachmentNotif] Email sent to reporter (${task.reporter.email})`
+        );
+      } catch (emailError) {
+        console.error(
+          "[AttachmentNotif] Failed to send email to reporter:",
+          emailError.message
+        );
+      }
+
+      // Send push notification to reporter
+      try {
+        await PushNotificationService.sendToUser(task.reporter_id, {
+          title: "File Attached to Task",
+          body: `"${task.title}" - ${file_name}`,
+          icon: "/icons/notification-icon.png",
+          badge: "/icons/notification-badge.png",
+          data: {
+            taskId: task.id,
+            action: "fileAttached",
+            taskTitle: task.title,
+            fileName: file_name,
+          },
+        });
+
+        console.log(
+          `[AttachmentNotif] Push notification sent to reporter (ID: ${task.reporter_id})`
+        );
+      } catch (pushError) {
+        console.error(
+          "[AttachmentNotif] Failed to send push to reporter:",
+          pushError.message
+        );
+      }
+    }
 
     res.status(StatusCodes.CREATED).json({
       success: true,

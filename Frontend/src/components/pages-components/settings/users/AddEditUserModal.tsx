@@ -258,7 +258,11 @@ export default function AddEditUserModal({
                 : "Fill in the details to create a new user account."}
             </p>
           </div>
-          <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${isMobile ? "max-h-[calc(100vh-200px)] overflow-y-auto pr-4" : ""}`}>
+          <div
+            className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${
+              isMobile ? "max-h-[calc(100vh-200px)] overflow-y-auto pr-4" : ""
+            }`}
+          >
             <div className="md:col-span-2 w-[200px]">
               <FormPhotoUploadHF
                 label="Profile Picture"
@@ -416,7 +420,10 @@ export default function AddEditUserModal({
           >
             Add New
           </Button>
-          <CustomSideWindow open={open || false} onOpenChange={setOpen || (() => {})}>
+          <CustomSideWindow
+            open={open || false}
+            onOpenChange={setOpen || (() => {})}
+          >
             <FormComponent />
           </CustomSideWindow>
         </>

@@ -413,11 +413,11 @@ export default function AddEditTaskModal({
               />
               <SearchSelectHF
                 name="reporter_id"
-                label="Assignee"
+                label="Assigned By"
                 required
                 disabled={isLoading}
                 searchable
-                placeholder="Search and select assignee"
+                placeholder="Search and select Assigned By"
                 onScrollLoadMore={true}
                 rtkQueryHook={useGetUsersQuery}
                 mapOption={(user: any) => ({
