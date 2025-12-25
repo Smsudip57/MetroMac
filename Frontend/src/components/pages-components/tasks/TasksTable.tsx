@@ -356,6 +356,7 @@ export default function TasksTable({
         assigned_to: taskToUpdate.assigned_to,
         start_date: taskToUpdate.start_date,
         end_date: taskToUpdate.end_date,
+        hold_reason: taskToUpdate.hold_reason,
         taskAlerts: updatedAlerts.map((alert) => ({
           alert_date: alert.alert_date,
         })),
@@ -400,6 +401,7 @@ export default function TasksTable({
         assigned_to: taskToUpdate.assigned_to,
         start_date: taskToUpdate.start_date,
         end_date: taskToUpdate.end_date,
+        hold_reason: taskToUpdate.hold_reason,
         taskAlerts: [], // Empty array - system will auto-generate all
         alertFrequency: alertFrequency,
       })?.unwrap?.();
@@ -419,7 +421,11 @@ export default function TasksTable({
 
   return (
     <>
-      <div className={`space-y-6 ${type === "archive" ? "!mt-0 sm+:!mt-0 xl:!mt-6" : "!mt-4 sm+:!mt-6" }`}>
+      <div
+        className={`space-y-6 ${
+          type === "archive" ? "!mt-0 sm+:!mt-0 xl:!mt-6" : "!mt-4 sm+:!mt-6"
+        }`}
+      >
         <div className="space-y-6">
           {/* Tasks Table */}
           <div className="bg-bg rounded-lg">

@@ -2,6 +2,8 @@
 import React, { useEffect } from "react";
 
 import CustomModal from "@/components/reuseable/Shared/CustomModal";
+import CustomSideWindow from "@/components/reuseable/Shared/CustomSideWindow";
+import { useWindowSize } from "@/hooks/useWindowSize";
 import SearchField from "@/components/reuseable/Shared/SearchField";
 import { z } from "zod";
 import { toast } from "react-hot-toast";
@@ -236,182 +238,205 @@ export default function AddEditUserModal({
   }));
 
   const isLoading = editingUser ? isUpdating : isCreating;
+  const { width } = useWindowSize();
+  const isMobile = width < 1024; // lg breakpoint
+
+  const FormComponent = () => {
+    return (
+      <FormProvider {...methods}>
+        <form
+          onSubmit={methods.handleSubmit(onSubmit)}
+          className="w-full max-w-2xl mx-auto px-6 py-0 flex flex-col gap-4"
+        >
+          <div className="mb-2">
+            <h3 className="text-2xl font-bold mb-1 tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              {editingUser ? "Edit User" : "User Information"}
+            </h3>
+            <p className="text-body-2 text-text_highlight">
+              {editingUser
+                ? "Update the details for this user."
+                : "Fill in the details to create a new user account."}
+            </p>
+          </div>
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${isMobile ? "max-h-[calc(100vh-200px)] overflow-y-auto pr-4" : ""}`}>
+            <div className="md:col-span-2 w-[200px]">
+              <FormPhotoUploadHF
+                label="Profile Picture"
+                profilePicture={true}
+                mode="upload-string"
+                onImageUpload={(image) =>
+                  methods.setValue("profileImage", image as string | null)
+                }
+                uploadedImages={methods.watch("profileImage")}
+                previewImage={methods.watch("profileImage")}
+                disabled={isLoading}
+              />
+            </div>
+            <FormInputHF
+              name="firstName"
+              label="First Name"
+              placeholder="Enter first name"
+              disabled={isLoading}
+            />
+            <FormInputHF
+              name="lastName"
+              label="Last Name"
+              placeholder="Enter last name"
+              disabled={isLoading}
+            />
+            <FormInputHF
+              name="username"
+              label="Username"
+              placeholder="Enter username"
+              required
+              disabled={isLoading || !!editingUser}
+            />
+            <FormInputHF
+              name="email"
+              label="Email"
+              type="email"
+              placeholder="Enter email"
+              required
+              disabled={isLoading}
+            />
+            <FormInputHF
+              name="password"
+              label={editingUser ? "New Password (Optional)" : "Password"}
+              type="password"
+              placeholder={
+                editingUser
+                  ? "Leave blank to keep current password"
+                  : "Enter password"
+              }
+              required={!editingUser}
+              disabled={isLoading}
+            />
+            <FormInputHF
+              name="phone"
+              label="Phone"
+              placeholder="Enter phone"
+              disabled={isLoading}
+            />
+            <SearchSelectHF
+              name="role"
+              label="Role"
+              options={roleOptions}
+              required
+              disabled={rolesLoading || isLoading}
+              searchable
+              placeholder="Search and select role"
+            />
+            {editingUser && (
+              <div className="flex flex-col space-y-2">
+                <label className="text-sm font-medium">Status</label>
+                <div className="flex items-center space-x-2">
+                  <label
+                    htmlFor="suspend-switch"
+                    className={`text-sm font-medium ${
+                      isSuspended ? "text-warning" : "text-success"
+                    }`}
+                  >
+                    {isSuspended ? "Suspended" : "Active"}
+                  </label>
+                  <Switch
+                    checked={!isSuspended}
+                    onCheckedChange={(checked) =>
+                      methods.setValue("is_suspended", !checked)
+                    }
+                    disabled={isLoading}
+                    id="suspend-switch"
+                  />
+                </div>
+              </div>
+            )}
+            {showCompanyFields && (
+              <>
+                <FormInputHF
+                  name="company_name"
+                  label="Company Name"
+                  placeholder="Enter company name"
+                  disabled={isLoading}
+                />
+                <FormInputHF
+                  name="company_address"
+                  label="Company Address"
+                  placeholder="Enter company address"
+                  disabled={isLoading}
+                />
+              </>
+            )}
+          </div>
+          <div className="flex justify-end items-center mt-8">
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8z"
+                    ></path>
+                  </svg>
+                  {editingUser ? "Updating..." : "Creating..."}
+                </span>
+              ) : editingUser ? (
+                "Update User"
+              ) : (
+                "Create User"
+              )}
+            </Button>
+          </div>
+        </form>
+      </FormProvider>
+    );
+  };
 
   return (
     <div className="flex items-center justify-between gap-4 sm+:mb-4">
-      <CustomModal
-        contentClassName="min-w-[600px]"
-        triggerText={<span className="flex items-center gap-1">Add New</span>}
-        resolver={schema}
-        onSubmit={() => {}}
-        open={open}
-        onOpenChange={setOpen}
-        form={
-          <FormProvider {...methods}>
-            <form
-              onSubmit={methods.handleSubmit(onSubmit)}
-              className="w-full max-w-2xl mx-auto px-6 py-0 flex flex-col gap-4"
-            >
-              <div className="mb-2">
-                <h3 className="text-2xl font-bold mb-1 tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                  {editingUser ? "Edit User" : "User Information"}
-                </h3>
-                <p className="text-body-2 text-text_highlight">
-                  {editingUser
-                    ? "Update the details for this user."
-                    : "Fill in the details to create a new user account."}
-                </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2 w-[200px]">
-                  <FormPhotoUploadHF
-                    label="Profile Picture"
-                    profilePicture={true}
-                    mode="upload-string"
-                    onImageUpload={(image) =>
-                      methods.setValue("profileImage", image as string | null)
-                    }
-                    uploadedImages={methods.watch("profileImage")}
-                    previewImage={methods.watch("profileImage")}
-                    disabled={isLoading}
-                  />
-                </div>
-                <FormInputHF
-                  name="firstName"
-                  label="First Name"
-                  placeholder="Enter first name"
-                  disabled={isLoading}
-                />
-                <FormInputHF
-                  name="lastName"
-                  label="Last Name"
-                  placeholder="Enter last name"
-                  disabled={isLoading}
-                />
-                <FormInputHF
-                  name="username"
-                  label="Username"
-                  placeholder="Enter username"
-                  required
-                  disabled={isLoading || !!editingUser}
-                />
-                <FormInputHF
-                  name="email"
-                  label="Email"
-                  type="email"
-                  placeholder="Enter email"
-                  required
-                  disabled={isLoading}
-                />
-                <FormInputHF
-                  name="password"
-                  label={editingUser ? "New Password (Optional)" : "Password"}
-                  type="password"
-                  placeholder={
-                    editingUser
-                      ? "Leave blank to keep current password"
-                      : "Enter password"
-                  }
-                  required={!editingUser}
-                  disabled={isLoading}
-                />
-                <FormInputHF
-                  name="phone"
-                  label="Phone"
-                  placeholder="Enter phone"
-                  disabled={isLoading}
-                />
-                <SearchSelectHF
-                  name="role"
-                  label="Role"
-                  options={roleOptions}
-                  required
-                  disabled={rolesLoading || isLoading}
-                  searchable
-                  placeholder="Search and select role"
-                />
-                {editingUser && (
-                  <div className="flex flex-col space-y-2">
-                    <label className="text-sm font-medium">Status</label>
-                    <div className="flex items-center space-x-2">
-                      <label
-                        htmlFor="suspend-switch"
-                        className={`text-sm font-medium ${
-                          isSuspended ? "text-warning" : "text-success"
-                        }`}
-                      >
-                        {isSuspended ? "Suspended" : "Active"}
-                      </label>
-                      <Switch
-                        checked={!isSuspended}
-                        onCheckedChange={(checked) =>
-                          methods.setValue("is_suspended", !checked)
-                        }
-                        disabled={isLoading}
-                        id="suspend-switch"
-                      />
-                    </div>
-                  </div>
-                )}
-                {showCompanyFields && (
-                  <>
-                    <FormInputHF
-                      name="company_name"
-                      label="Company Name"
-                      placeholder="Enter company name"
-                      disabled={isLoading}
-                    />
-                    <FormInputHF
-                      name="company_address"
-                      label="Company Address"
-                      placeholder="Enter company address"
-                      disabled={isLoading}
-                    />
-                  </>
-                )}
-              </div>
-              <div className="flex justify-end items-center mt-8">
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? (
-                    <span className="flex items-center gap-2">
-                      <svg
-                        className="animate-spin h-5 w-5 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v8z"
-                        ></path>
-                      </svg>
-                      {editingUser ? "Updating..." : "Creating..."}
-                    </span>
-                  ) : editingUser ? (
-                    "Update User"
-                  ) : (
-                    "Create User"
-                  )}
-                </Button>
-              </div>
-            </form>
-          </FormProvider>
-        }
-        triggerProps={{
-          className: "flex items-center gap-2",
-          disabled: isLoading,
-          size: "sm",
-        }}
-      />
+      {/* Mobile: Add New Button + CustomSideWindow (width < 1024px) */}
+      {isMobile ? (
+        <>
+          <Button
+            onClick={() => setOpen?.(true)}
+            className="flex items-center gap-2"
+            size="sm"
+          >
+            Add New
+          </Button>
+          <CustomSideWindow open={open || false} onOpenChange={setOpen || (() => {})}>
+            <FormComponent />
+          </CustomSideWindow>
+        </>
+      ) : (
+        /* Desktop: CustomModal (width >= 1024px) */
+        <CustomModal
+          contentClassName="min-w-[600px]"
+          triggerText={<span className="flex items-center gap-1">Add New</span>}
+          resolver={schema}
+          onSubmit={() => {}}
+          open={open}
+          onOpenChange={setOpen}
+          form={<FormComponent />}
+          triggerProps={{
+            className: "flex items-center gap-2",
+            disabled: isLoading,
+            size: "sm",
+          }}
+        />
+      )}
       <div className="flex-1 max-w-sm">
         <SearchField
           value={searchTerm}
