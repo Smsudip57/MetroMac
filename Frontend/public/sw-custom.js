@@ -74,7 +74,7 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
   const taskId = event.notification.data?.taskId;
-  const url = taskId ? `/dashboard/tasks/view?id=${taskId}` : "/dashboard";
+  const url = taskId ? `/tasks/view?id=${taskId}` : "/dashboard";
 
   event.waitUntil(
     clients.matchAll({ type: "window" }).then((clientList) => {

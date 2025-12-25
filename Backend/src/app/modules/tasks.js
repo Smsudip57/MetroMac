@@ -273,7 +273,6 @@ async function createTask(req, res, next) {
           data: {
             type: "task_supervision",
             taskId: task.id,
-            action: `/dashboard/tasks/${task.id}`,
           },
         });
       } catch (pushError) {
@@ -948,7 +947,6 @@ async function updateTask(req, res, next) {
             data: {
               type: "task_unassigned",
               taskId: task.id,
-              action: `/dashboard/tasks/${task.id}`,
             },
           });
         } catch (pushError) {
@@ -1054,7 +1052,6 @@ async function updateTask(req, res, next) {
           data: {
             type: "task_supervision",
             taskId: task.id,
-            action: `/dashboard/tasks/${task.id}`,
           },
         });
       } catch (pushError) {
@@ -1096,7 +1093,6 @@ async function updateTask(req, res, next) {
             data: {
               type: "task_supervision_removed",
               taskId: task.id,
-              action: `/dashboard/tasks/${task.id}`,
             },
           });
         } catch (pushError) {
@@ -1154,7 +1150,6 @@ async function updateTask(req, res, next) {
           data: {
             type: "task_completed",
             taskId: task.id,
-            action: `/dashboard/tasks/${task.id}`,
           },
         });
       } catch (pushError) {
@@ -1203,7 +1198,6 @@ async function updateTask(req, res, next) {
             data: {
               type: "task_on_hold",
               taskId: task.id,
-              action: `/dashboard/tasks/${task.id}`,
             },
           });
         } catch (pushError) {
@@ -1305,7 +1299,6 @@ async function updateTask(req, res, next) {
           data: {
             type: "task_status_updated",
             taskId: task.id,
-            action: `/dashboard/tasks/${task.id}`,
           },
         });
       } catch (pushError) {
@@ -1348,7 +1341,6 @@ async function updateTask(req, res, next) {
             data: {
               type: "task_archived",
               taskId: task.id,
-              action: `/dashboard/tasks/${task.id}`,
             },
           });
         } catch (pushError) {
@@ -1771,7 +1763,7 @@ async function attachAttachmentToTask(req, res, next) {
 
       // Send push notification to assignee
       try {
-        await PushNotificationService.sendToUser(task.assignee_id, {
+        await PushNotificationService.sendToUser(task.assigned_to, {
           title: "File Attached to Task",
           body: `"${task.title}" - ${file_name}`,
           icon: "/icons/notification-icon.png",
@@ -1785,7 +1777,7 @@ async function attachAttachmentToTask(req, res, next) {
         });
 
         console.log(
-          `[AttachmentNotif] Push notification sent to assignee (ID: ${task.assignee_id})`
+          `[AttachmentNotif] Push notification sent to assignee (ID: ${task.assigned_to})`
         );
       } catch (pushError) {
         console.error(
