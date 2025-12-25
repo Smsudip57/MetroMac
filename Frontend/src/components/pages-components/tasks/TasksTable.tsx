@@ -419,7 +419,7 @@ export default function TasksTable({
 
   return (
     <>
-      <div className={`space-y-6 ${type === "archive" ? "!mt-0 sm+:!mt-0 xl:!mt-6" : " mt-4 sm+:!mt-6" }`}>
+      <div className={`space-y-6 ${type === "archive" ? "!mt-0 sm+:!mt-0 xl:!mt-6" : "!mt-4 sm+:!mt-6" }`}>
         <div className="space-y-6">
           {/* Tasks Table */}
           <div className="bg-bg rounded-lg">
