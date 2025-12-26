@@ -188,6 +188,58 @@ export class ColumnMapper {
             },
         },
 
+        task: {
+            title: {
+                header: 'Task Title',
+                dbField: 'title',
+                type: 'string',
+            },
+            description: {
+                header: 'Description',
+                dbField: 'description',
+                type: 'string',
+            },
+            status: {
+                header: 'Status',
+                dbField: 'status',
+                type: 'string',
+                formatter: (obj) =>
+                    obj.status
+                        ? obj.status.charAt(0).toUpperCase() + obj.status.slice(1).replace(/_/g, ' ')
+                        : '',
+            },
+            assigned_to_name: {
+                header: 'Assigned To',
+                dbField: 'assignee',
+                type: 'string',
+                formatter: (obj) =>
+                    obj.assignee
+                        ? `${obj.assignee.firstName} ${obj.assignee.lastName}`
+                        : '-',
+            },
+            reporter_name: {
+                header: 'Assigned By',
+                dbField: 'reporter',
+                type: 'string',
+                formatter: (obj) =>
+                    obj.reporter
+                        ? `${obj.reporter.firstName} ${obj.reporter.lastName}`
+                        : '-',
+            },
+            start_date: {
+                header: 'Start Date',
+                dbField: 'start_date',
+                type: 'date',
+                format: 'YYYY-MM-DD',
+            },
+            end_date: {
+                header: 'End Date',
+                dbField: 'end_date',
+                type: 'date',
+                format: 'YYYY-MM-DD',
+            },
+        },
+
         lead: {
             lead_number: {
                 header: 'Lead Number',
@@ -288,6 +340,10 @@ export class ColumnMapper {
             case 'date':
                 if (value instanceof Date) {
                     return value.toISOString().split('T')[0];
+                }
+                if (typeof value === 'string') {
+                    // Handle ISO string or other date formats
+                    return value.split('T')[0];
                 }
                 return value;
             case 'decimal':

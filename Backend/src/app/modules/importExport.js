@@ -217,6 +217,28 @@ async function getImportExportConfig(req, res, next) {
 
 async function fetchDataByModule(module, filters) {
     switch (module?.toLowerCase()) {
+        case "task":
+            return await prisma.task.findMany({
+                include: {
+                    assignee: {
+                        select: {
+                            firstName: true,
+                            lastName: true,
+                            username: true,
+                        },
+                    },
+                    reporter: {
+                        select: {
+                            firstName: true,
+                            lastName: true,
+                            username: true,
+                        },
+                    },
+                },
+                take: parseInt(filters.limit) || 1000,
+                where: buildWhereClause(module, filters),
+            });
+
         case "quotation":
             return await prisma.quotation.findMany({
                 include: {
@@ -280,6 +302,12 @@ function buildWhereClause(module, filters) {
             { notes: { contains: filters.search, mode: "insensitive" } },
         ];
 
+        if (module === "task") {
+            where.OR = [
+                { title: { contains: filters.search, mode: "insensitive" } },
+                { description: { contains: filters.search, mode: "insensitive" } },
+            ];
+        }
         if (module === "quotation") {
             where.OR.push({
                 quotation_number: { contains: filters.search, mode: "insensitive" },
@@ -330,9 +358,18 @@ async function exportToCSV(data, module) {
 
     const headers = Object.values(columns).map((col) => col.header);
 
+    // Ensure all records have all fields (Papa.unparse requires consistent keys)
+    const normalizedData = formattedData.map((row) => {
+        const normalizedRow = {};
+        headers.forEach((header) => {
+            normalizedRow[header] = row[header] || '';
+        });
+        return normalizedRow;
+    });
+
     const csv = Papa.unparse({
         fields: headers,
-        data: formattedData,
+        data: normalizedData,
     });
 
     return Buffer.from(csv, "utf-8");
