@@ -256,11 +256,15 @@ export default function AddEditUserModal({
           <CustomSideWindow
             open={open || false}
             onOpenChange={setOpen || (() => {})}
+            initialWidth={width}
+            maxWidth={width}
+            minWidth={width}
+            className="!pr-0"
           >
           <FormProvider {...methods}>
         <form
           onSubmit={methods.handleSubmit(onSubmit)}
-          className="w-full max-w-2xl mx-auto px-6 py-0 flex flex-col gap-4"
+          className="w-full py-0 flex flex-col gap-4"
         >
           <div className="mb-2">
             <h3 className="text-2xl font-bold mb-1 tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
@@ -274,7 +278,7 @@ export default function AddEditUserModal({
           </div>
           <div
             className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${
-              isMobile ? "max-h-[calc(100vh-200px)] overflow-y-auto pr-4" : ""
+              isMobile ? "max-h-[calc(100vh-400px)] overflow-y-auto pr-6" : ""
             }`}
           >
             <div className="md:col-span-2 w-[200px]">

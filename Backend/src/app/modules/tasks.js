@@ -74,9 +74,24 @@ async function createTask(req, res, next) {
     if (assigned_to) {
       const assignee = await prisma.user.findUnique({
         where: { id: parseInt(assigned_to) },
+        select: {
+          id: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: { select: { id: true, name: true } },
+        },
       });
       if (!assignee) {
         throw new ApiError(StatusCodes.NOT_FOUND, "Assignee not found");
+      }
+
+      if (assignee.role.name.toLowerCase() === "manager") {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          "Assigned user cannot be a manager"
+        );
       }
     }
 
@@ -296,18 +311,36 @@ async function createTask(req, res, next) {
 // Get task statistics
 async function getTaskStats(req, res, next) {
   try {
+    const isManager =
+      req?.user?.role?.toLowerCase() === "manager" ||
+      req?.user?.role?.toLowerCase() === "employee";
+
+    // Base where clause
+    const baseWhere = { is_archived: false };
+
+    // Manager role filter - can only see tasks they're reporting or assigned to
+    if (isManager) {
+      baseWhere.OR = [
+        { reporter_id: req.user.id },
+        { assigned_to: req.user.id },
+        { created_by: req.user.id },
+      ];
+    }
+
     const [totalTasks, activeTasks, completedTasks, overdueTasks] =
       await Promise.all([
-        prisma.task.count({ where: { is_archived: false } }),
-        prisma.task.count({ where: { status: "active", is_archived: false } }),
+        prisma.task.count({ where: baseWhere }),
         prisma.task.count({
-          where: { status: "completed", is_archived: false },
+          where: { ...baseWhere, status: "active" },
+        }),
+        prisma.task.count({
+          where: { ...baseWhere, status: "completed" },
         }),
         prisma.task.count({
           where: {
+            ...baseWhere,
             status: { not: "completed" },
             end_date: { lt: new Date() },
-            is_archived: false,
           },
         }),
       ]);
@@ -358,7 +391,11 @@ async function getTasks(req, res, next) {
 
     // Manager role filter - can only see tasks they created or are assigned to
     if (isManager) {
-      where.OR = [{ reporter_id: req.user.id }, { assigned_to: req.user.id }];
+      where.OR = [
+        { reporter_id: req.user.id },
+        { assigned_to: req.user.id },
+        { created_by: req.user.id },
+      ];
     }
 
     // Search filter
@@ -651,8 +688,15 @@ async function updateTask(req, res, next) {
           firstName: true,
           lastName: true,
           email: true,
+          role: { select: { id: true, name: true } },
         },
       });
+      if (assignee.role.name.toLowerCase() === "manager") {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          "Assigned user cannot be a manager"
+        );
+      }
       if (!newAssignee) {
         throw new ApiError(StatusCodes.NOT_FOUND, "Assignee not found");
       }
