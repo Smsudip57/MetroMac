@@ -48,6 +48,7 @@ const LoginForm = ({
             alt={companyName || "Company Logo"}
             width={64}
             height={64}
+            quality={100}
             className="h-16 w-auto object-contain"
           />
         )}
