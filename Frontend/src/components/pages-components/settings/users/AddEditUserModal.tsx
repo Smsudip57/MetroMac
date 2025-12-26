@@ -313,6 +313,15 @@ export default function AddEditUserModal({
               required
               disabled={isLoading || !!editingUser}
             />
+            <SearchSelectHF
+              name="role"
+              label="Role"
+              options={roleOptions}
+              required
+              disabled={rolesLoading || isLoading}
+              searchable
+              placeholder="Search and select role"
+            />
             <FormInputHF
               name="email"
               label="Email"
@@ -339,15 +348,7 @@ export default function AddEditUserModal({
               placeholder="Enter phone"
               disabled={isLoading}
             />
-            <SearchSelectHF
-              name="role"
-              label="Role"
-              options={roleOptions}
-              required
-              disabled={rolesLoading || isLoading}
-              searchable
-              placeholder="Search and select role"
-            />
+            
             {editingUser && (
               <div className="flex flex-col space-y-2">
                 <label className="text-sm font-medium">Status</label>
