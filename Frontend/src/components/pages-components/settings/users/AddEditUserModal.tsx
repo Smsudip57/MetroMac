@@ -278,7 +278,7 @@ export default function AddEditUserModal({
           </div>
           <div
             className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${
-              isMobile ? "max-h-[calc(100vh-400px)] overflow-y-auto pr-6" : ""
+              isMobile ? "max-h-[calc(100vh-200px)] overflow-y-auto pr-6" : ""
             }`}
           >
             <div className="md:col-span-2 w-[200px]">
