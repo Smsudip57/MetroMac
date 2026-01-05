@@ -691,7 +691,7 @@ async function updateTask(req, res, next) {
           role: { select: { id: true, name: true } },
         },
       });
-      if (assignee.role.name.toLowerCase() === "manager") {
+      if (newAssignee.role.name.toLowerCase() === "manager") {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
           "Assigned user cannot be a manager"
