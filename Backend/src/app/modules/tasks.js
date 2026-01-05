@@ -691,15 +691,16 @@ async function updateTask(req, res, next) {
           role: { select: { id: true, name: true } },
         },
       });
+      if (!newAssignee) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Assignee not found");
+      }
       if (newAssignee.role.name.toLowerCase() === "manager") {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
           "Assigned user cannot be a manager"
         );
       }
-      if (!newAssignee) {
-        throw new ApiError(StatusCodes.NOT_FOUND, "Assignee not found");
-      }
+      
     }
 
     // Validate alerts
