@@ -56,10 +56,10 @@ async function createTask(req, res, next) {
     // Validate dates
     const startDate = new Date(start_date);
     const endDate = new Date(end_date);
-    if (startDate >= endDate) {
+    if (startDate > endDate) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        "Start date must be before end date"
+        "Start date must be before or equal to end date"
       );
     }
 
@@ -629,10 +629,10 @@ async function updateTask(req, res, next) {
         : currentTask.start_date;
       const newEndDate = end_date ? new Date(end_date) : currentTask.end_date;
 
-      if (newStartDate >= newEndDate) {
+      if (newStartDate > newEndDate) {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
-          "Start date must be before end date"
+          "Start date must be before or equal to end date"
         );
       }
     }
