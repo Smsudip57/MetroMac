@@ -559,6 +559,134 @@ function taskArchiveTemplate(assigneeName, task) {
   `;
 }
 
+/**
+ * Generate task overdue notification email HTML
+ */
+function taskOverdueTemplate(recipientName, task, isReporter = false) {
+  const endDate = new Date(task.end_date);
+  const formattedEndDate = endDate.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const headerMessage = isReporter
+    ? `The following assigned task is now overdue:`
+    : `The following task is now overdue:`;
+
+  const actionMessage = isReporter
+    ? `Please follow up on this overdue task.`
+    : `Please take action on this task immediately.`;
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+      <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #dc2626;">
+        <h2 style="color: #dc2626; margin-bottom: 20px;">⚠️ Task Overdue</h2>
+        
+        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+          Hello <strong>${recipientName}</strong>,
+        </p>
+        
+        <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
+          ${headerMessage}
+        </p>
+        
+        <div style="background-color: #fef2f2; padding: 20px; border-left: 4px solid #dc2626; margin-bottom: 30px; border-radius: 4px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #fecaca;">
+              <td style="padding: 12px 0; font-weight: bold; color: #991b1b; width: 120px;">Task Title:</td>
+              <td style="padding: 12px 0; color: #666;">${task.title}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #fecaca;">
+              <td style="padding: 12px 0; font-weight: bold; color: #991b1b;">Description:</td>
+              <td style="padding: 12px 0; color: #666;">${
+                task.description || "N/A"
+              }</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #fecaca;">
+              <td style="padding: 12px 0; font-weight: bold; color: #991b1b;">End Date:</td>
+              <td style="padding: 12px 0; color: #dc2626; font-weight: bold;">${formattedEndDate}</td>
+            </tr>
+            ${
+              isReporter
+                ? `<tr style="border-bottom: 1px solid #fecaca;">
+              <td style="padding: 12px 0; font-weight: bold; color: #991b1b;">Assigned To:</td>
+              <td style="padding: 12px 0; color: #666;">${
+                `${task.assignee?.firstName} ${task.assignee?.lastName}`.trim() ||
+                "N/A"
+              }</td>
+            </tr>`
+                : ""
+            }
+            <tr>
+              <td style="padding: 12px 0; font-weight: bold; color: #991b1b;">Status:</td>
+              <td style="padding: 12px 0; color: #666; text-transform: capitalize;">${
+                task.status
+              }</td>
+            </tr>
+          </table>
+        </div>
+        
+        <div style="background-color: #fef2f2; padding: 15px; border-left: 4px solid #dc2626; border-radius: 4px; margin-bottom: 30px;">
+          <p style="color: #991b1b; font-size: 13px; margin: 0; font-weight: bold;">
+            ${actionMessage}
+          </p>
+        </div>
+        
+        <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+          Please log in to the system to view more details and update the task status.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Generate task comment notification email HTML
+ */
+function taskCommentTemplate(
+  recipientName,
+  commenterName,
+  task,
+  comment,
+  isReporter = false
+) {
+  const headerMessage = isReporter
+    ? `${commenterName} has commented on a task you created:`
+    : `${commenterName} has commented on your task:`;
+
+  const titlePrefix = isReporter
+    ? "New Comment on Task"
+    : "New Comment on Your Task";
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+      <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 style="color: #333; margin-bottom: 20px;">${titlePrefix}</h2>
+        
+        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+          Hello <strong>${recipientName}</strong>,
+        </p>
+        
+        <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
+          ${headerMessage}
+        </p>
+        
+        <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #2196F3; margin-bottom: 30px; border-radius: 4px;">
+          <p style="margin: 0 0 15px 0; font-weight: bold; color: #333;">Task: ${task.title}</p>
+          <div style="background-color: #ffffff; padding: 15px; border-radius: 4px; border-left: 3px solid #2196F3;">
+            <p style="margin: 0; color: #666; line-height: 1.6;">${comment}</p>
+          </div>
+        </div>
+        
+        <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+          Please log in to the system to view and reply to this comment.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
 export {
   taskAssignmentTemplate,
   taskReassignmentTemplate,
@@ -569,4 +697,6 @@ export {
   taskReporterUnassignmentTemplate,
   taskHoldTemplate,
   taskArchiveTemplate,
+  taskOverdueTemplate,
+  taskCommentTemplate,
 };

@@ -196,7 +196,19 @@ export default function TasksTable({
       sortable: true,
       cell: (item: any) => {
         const endDate = item.end_date ? formatDate.getDate(item.end_date) : "-";
-        return <span className="text-sm">{endDate}</span>;
+        const isOverdue =
+          item.end_date &&
+          new Date(item.end_date) < new Date(new Date().setHours(0, 0, 0, 0));
+        return (
+          <span
+            className={`text-sm ${
+              isOverdue ? "text-red-600 font-semibold" : ""
+            }`}
+            title={isOverdue ? "Overdue" : ""}
+          >
+            {endDate}
+          </span>
+        );
       },
       width: 120,
     },

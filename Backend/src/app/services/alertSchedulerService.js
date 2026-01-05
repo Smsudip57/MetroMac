@@ -2,26 +2,39 @@ import cron from "node-cron";
 import { PrismaClient } from "@prisma/client";
 import PushNotificationService from "./pushNotificationService.js";
 import emailService from "./emailService.js";
-import { taskAlertTemplate } from "../../templates/emailTemplates.js";
+import {
+  taskAlertTemplate,
+  taskOverdueTemplate,
+} from "../../templates/emailTemplates.js";
 
 const prisma = new PrismaClient();
 
 class AlertSchedulerService {
   static cronJob = null;
+  static overdueCheckCronJob = null;
 
   /**
-   * Initialize the scheduler - runs every minute
-   * Checks for alerts matching current HH:MM
+   * Initialize the scheduler - runs every minute for alerts & once daily for overdue check
    */
   static init() {
     try {
-      // Run every minute at second 0
+      // Run every minute at second 0 for task alerts
       // * * * * * (minute, hour, day of month, month, day of week)
       this.cronJob = cron.schedule("* * * * *", async () => {
         await this.checkAndSendAlerts();
       });
 
       console.log("[AlertScheduler] Initialized - running every minute");
+
+      // Run once daily at 9 AM for overdue task notifications
+      // 0 9 * * * (at 09:00 every day)
+      this.overdueCheckCronJob = cron.schedule("0 9 * * *", async () => {
+        await this.checkAndSendOverdueNotifications();
+      });
+
+      console.log(
+        "[AlertScheduler] Overdue check initialized - running daily at 9 AM"
+      );
       return this.cronJob;
     } catch (error) {
       console.error("[AlertScheduler] Failed to initialize:", error);
@@ -235,12 +248,205 @@ class AlertSchedulerService {
   }
 
   /**
-   * Stop the scheduler
+   * Check and send notifications for tasks that just became overdue today
+   * Runs once daily at 9 AM
+   */
+  static async checkAndSendOverdueNotifications() {
+    try {
+      console.log("[AlertScheduler] Checking for overdue tasks...");
+
+      // Get today at 00:00:00
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Get yesterday at 00:00:00
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      // Find all non-archived tasks that just became overdue today
+      // (end_date is yesterday, meaning task ended yesterday and is now overdue)
+      const overdueTasks = await prisma.task.findMany({
+        where: {
+          is_archived: false,
+          status: {
+            not: "completed", // Don't notify for completed tasks
+          },
+          end_date: {
+            gte: yesterday, // From yesterday 00:00:00
+            lt: today, // To today 00:00:00 (so only yesterday's dates)
+          },
+        },
+        include: {
+          assignee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          reporter: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      if (overdueTasks.length === 0) {
+        console.log("[AlertScheduler] No overdue tasks found");
+        return;
+      }
+
+      console.log(
+        `[AlertScheduler] Found ${overdueTasks.length} overdue task(s)`
+      );
+
+      // Process each overdue task
+      for (const task of overdueTasks) {
+        await this.sendOverdueTaskNotification(task);
+      }
+    } catch (error) {
+      console.error("[AlertScheduler] Error checking overdue tasks:", error);
+    }
+  }
+
+  /**
+   * Send overdue notification for a single task
+   * @param {Object} task - Task object with assignee and reporter data
+   */
+  static async sendOverdueTaskNotification(task) {
+    try {
+      console.log(
+        `[AlertScheduler] Processing overdue task ${task.id}: "${task.title}"`
+      );
+
+      // Notify assignee if task is assigned
+      if (task.assignee && task.assignee.email) {
+        try {
+          const assigneeName =
+            `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
+            "Team Member";
+
+          const emailHtml = taskOverdueTemplate(assigneeName, task, false);
+
+          await emailService.sendEmail({
+            to: task.assignee.email,
+            subject: `⚠️ Task Overdue: ${task.title}`,
+            html: emailHtml,
+          });
+
+          console.log(
+            `[AlertScheduler] Overdue email sent to assignee (${task.assignee.email})`
+          );
+        } catch (emailError) {
+          console.error(
+            `[AlertScheduler] Failed to send overdue email to assignee:`,
+            emailError.message
+          );
+        }
+
+        // Send push notification to assignee
+        try {
+          await PushNotificationService.sendToUser(task.assignee.id, {
+            title: "⚠️ Task Overdue",
+            body: `${task.title}`,
+            icon: "/icons/notification-icon.png",
+            badge: "/icons/notification-badge.png",
+            data: {
+              taskId: task.id,
+              action: "taskOverdue",
+              taskTitle: task.title,
+            },
+          });
+
+          console.log(
+            `[AlertScheduler] Overdue push sent to assignee (ID: ${task.assignee.id})`
+          );
+        } catch (pushError) {
+          console.error(
+            `[AlertScheduler] Failed to send overdue push to assignee:`,
+            pushError.message
+          );
+        }
+      }
+
+      // Notify reporter if different from assignee
+      if (
+        task.reporter &&
+        task.reporter.email &&
+        task.reporter.id !== task.assignee?.id
+      ) {
+        try {
+          const reporterName =
+            `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
+            "Manager";
+
+          const emailHtml = taskOverdueTemplate(reporterName, task, true);
+
+          await emailService.sendEmail({
+            to: task.reporter.email,
+            subject: `⚠️ Task Overdue: ${task.title}`,
+            html: emailHtml,
+          });
+
+          console.log(
+            `[AlertScheduler] Overdue email sent to reporter (${task.reporter.email})`
+          );
+        } catch (emailError) {
+          console.error(
+            `[AlertScheduler] Failed to send overdue email to reporter:`,
+            emailError.message
+          );
+        }
+
+        // Send push notification to reporter
+        try {
+          await PushNotificationService.sendToUser(task.reporter.id, {
+            title: "⚠️ Task Overdue",
+            body: `${task.title}`,
+            icon: "/icons/notification-icon.png",
+            badge: "/icons/notification-badge.png",
+            data: {
+              taskId: task.id,
+              action: "taskOverdue",
+              taskTitle: task.title,
+            },
+          });
+
+          console.log(
+            `[AlertScheduler] Overdue push sent to reporter (ID: ${task.reporter.id})`
+          );
+        } catch (pushError) {
+          console.error(
+            `[AlertScheduler] Failed to send overdue push to reporter:`,
+            pushError.message
+          );
+        }
+      }
+
+      console.log(
+        `[AlertScheduler] Overdue notification for task ${task.id} processed successfully\n`
+      );
+    } catch (error) {
+      console.error(`[AlertScheduler] Error processing overdue task:`, error);
+    }
+  }
+
+  /**
+   * Stop the schedulers
    */
   static stop() {
     if (this.cronJob) {
       this.cronJob.stop();
-      console.log("[AlertScheduler] Stopped");
+      console.log("[AlertScheduler] Alert scheduler stopped");
+    }
+    if (this.overdueCheckCronJob) {
+      this.overdueCheckCronJob.stop();
+      console.log("[AlertScheduler] Overdue check scheduler stopped");
     }
   }
 }

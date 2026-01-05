@@ -13,6 +13,7 @@ import {
   taskReporterUnassignmentTemplate,
   taskHoldTemplate,
   taskArchiveTemplate,
+  taskCommentTemplate,
 } from "../../templates/emailTemplates.js";
 
 const prisma = new PrismaClient();
@@ -700,7 +701,6 @@ async function updateTask(req, res, next) {
           "Assigned user cannot be a manager"
         );
       }
-      
     }
 
     // Validate alerts
@@ -1629,6 +1629,24 @@ async function addTaskComment(req, res, next) {
 
     const task = await prisma.task.findUnique({
       where: { id: parseInt(taskId) },
+      include: {
+        assignee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        reporter: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
     });
 
     if (!task) {
@@ -1653,6 +1671,130 @@ async function addTaskComment(req, res, next) {
         },
       },
     });
+
+    // Determine who commented and send notification accordingly
+    const isReporterCommenting = user_id === task.reporter_id;
+    const isAssigneeCommenting = user_id === task.assigned_to;
+
+    // If reporter commented, notify assignee/employee
+    if (isReporterCommenting && task.assignee && task.assignee.email) {
+      try {
+        const assigneeName =
+          `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
+          "Team Member";
+        const commenterName =
+          `${comment.user.firstName} ${comment.user.lastName}`.trim() ||
+          comment.user.username;
+
+        const emailHtml = taskCommentTemplate(
+          assigneeName,
+          commenterName,
+          task,
+          content.trim(),
+          false
+        );
+
+        await emailService.sendEmail({
+          to: task.assignee.email,
+          subject: `New Comment on Task: ${task.title}`,
+          html: emailHtml,
+        });
+
+        console.log(
+          `[CommentNotif] Email sent to assignee (${task.assignee.email})`
+        );
+      } catch (emailError) {
+        console.error(
+          "[CommentNotif] Failed to send email to assignee:",
+          emailError.message
+        );
+      }
+
+      // Send push notification to assignee
+      try {
+        await PushNotificationService.sendToUser(task.assigned_to, {
+          title: "New Comment on Task",
+          body: `"${task.title}" - ${commenterName} commented`,
+          icon: "/icons/notification-icon.png",
+          badge: "/icons/notification-badge.png",
+          data: {
+            taskId: task.id,
+            action: "commentAdded",
+            taskTitle: task.title,
+            commenterName: commenterName,
+          },
+        });
+
+        console.log(
+          `[CommentNotif] Push notification sent to assignee (ID: ${task.assigned_to})`
+        );
+      } catch (pushError) {
+        console.error(
+          "[CommentNotif] Failed to send push to assignee:",
+          pushError.message
+        );
+      }
+    }
+
+    // If assignee commented, notify reporter only
+    if (isAssigneeCommenting && task.reporter && task.reporter.email) {
+      try {
+        const reporterName =
+          `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
+          "Manager";
+        const commenterName =
+          `${comment.user.firstName} ${comment.user.lastName}`.trim() ||
+          comment.user.username;
+
+        const emailHtml = taskCommentTemplate(
+          reporterName,
+          commenterName,
+          task,
+          content.trim(),
+          true
+        );
+
+        await emailService.sendEmail({
+          to: task.reporter.email,
+          subject: `New Comment on Task: ${task.title}`,
+          html: emailHtml,
+        });
+
+        console.log(
+          `[CommentNotif] Email sent to reporter (${task.reporter.email})`
+        );
+      } catch (emailError) {
+        console.error(
+          "[CommentNotif] Failed to send email to reporter:",
+          emailError.message
+        );
+      }
+
+      // Send push notification to reporter
+      try {
+        await PushNotificationService.sendToUser(task.reporter_id, {
+          title: "New Comment on Task",
+          body: `"${task.title}" - ${commenterName} commented`,
+          icon: "/icons/notification-icon.png",
+          badge: "/icons/notification-badge.png",
+          data: {
+            taskId: task.id,
+            action: "commentAdded",
+            taskTitle: task.title,
+            commenterName: commenterName,
+          },
+        });
+
+        console.log(
+          `[CommentNotif] Push notification sent to reporter (ID: ${task.reporter_id})`
+        );
+      } catch (pushError) {
+        console.error(
+          "[CommentNotif] Failed to send push to reporter:",
+          pushError.message
+        );
+      }
+    }
 
     res.status(StatusCodes.CREATED).json({
       success: true,
