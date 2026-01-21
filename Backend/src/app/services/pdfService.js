@@ -1,10 +1,40 @@
 import puppeteer from "puppeteer";
 import ApiError from "../../errors/ApiError.js";
+import os from "os";
 
 class PDFService {
   constructor() {
     this.browser = null;
     this.isInitializing = false;
+  }
+
+  /**
+   * Get the executable path based on the OS
+   */
+  getExecutablePath() {
+    const platform = os.platform();
+
+    // Check environment variable first
+    if (process.env.CHROMIUM_PATH) {
+      return process.env.CHROMIUM_PATH;
+    }
+
+    // Linux paths
+    if (platform === "linux") {
+      return "/usr/bin/chromium-browser";
+    }
+
+    // Windows paths - let puppeteer find it automatically
+    if (platform === "win32") {
+      return undefined; // Puppeteer will auto-detect Chrome/Chromium
+    }
+
+    // macOS paths
+    if (platform === "darwin") {
+      return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+    }
+
+    return undefined; // Default fallback
   }
 
   /**
@@ -29,21 +59,31 @@ class PDFService {
     this.isInitializing = true;
 
     try {
-      this.browser = await puppeteer.launch({
+      const executablePath = this.getExecutablePath();
+      const launchOptions = {
         headless: true,
         args: [
           "--no-sandbox",
           "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage", // Reduce memory usage
+          "--disable-dev-shm-usage",
           "--disable-gpu",
-          "--single-process", // Use for production with caution
+          "--disable-extensions",
+          "--disable-default-apps",
         ],
-      });
+      };
+
+      // Only add executablePath if it's not undefined
+      if (executablePath) {
+        launchOptions.executablePath = executablePath;
+      }
+
+      this.browser = await puppeteer.launch(launchOptions);
 
       this.isInitializing = false;
       return this.browser;
     } catch (error) {
       this.isInitializing = false;
+      console.error("[PDF Service] Browser initialization failed:", error);
       throw new ApiError(
         500,
         "Failed to initialize PDF service: " + error.message,
@@ -95,6 +135,7 @@ class PDFService {
 
       return pdfBuffer;
     } catch (error) {
+      console.error("[PDF Service] PDF generation failed:", error);
       throw new ApiError(
         500,
         "Failed to generate PDF: " + error.message,
