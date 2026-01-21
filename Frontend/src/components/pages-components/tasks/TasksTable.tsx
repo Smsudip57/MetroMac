@@ -104,9 +104,10 @@ export default function TasksTable({
   const [updateTask] = useUpdateTaskMutation?.() || [];
   const [deleteTaskAlert] = useDeleteTaskAlertMutation?.() || [];
 
-  // Check if task is overdue
+  // Check if task is overdue (but not if it's completed)
   const isTaskOverdue = (task: any) => {
     return (
+      task.status !== "completed" &&
       task.end_date &&
       new Date(task.end_date) < new Date(new Date().setHours(0, 0, 0, 0))
     );
