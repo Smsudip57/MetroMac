@@ -220,36 +220,18 @@ class PDFTemplates {
           <div class="number">${summary.total}</div>
           <div class="label">Total Records</div>
         </div>
-        ${
-          summary.pending
-            ? `
-          <div class="summary-box">
-            <div class="number">${summary.pending}</div>
-            <div class="label">Pending</div>
-          </div>
-        `
-            : ""
-        }
-        ${
-          summary.inProgress
-            ? `
-          <div class="summary-box">
-            <div class="number">${summary.inProgress}</div>
-            <div class="label">In Progress</div>
-          </div>
-        `
-            : ""
-        }
-        ${
-          summary.completed
-            ? `
-          <div class="summary-box">
-            <div class="number">${summary.completed}</div>
-            <div class="label">Completed</div>
-          </div>
-        `
-            : ""
-        }
+        <div class="summary-box">
+          <div class="number">${summary.pending || 0}</div>
+          <div class="label">Pending</div>
+        </div>
+        <div class="summary-box">
+          <div class="number">${summary.inProgress || 0}</div>
+          <div class="label">In Progress</div>
+        </div>
+        <div class="summary-box">
+          <div class="number">${summary.completed || 0}</div>
+          <div class="label">Completed</div>
+        </div>
       </div>
     `;
   }
