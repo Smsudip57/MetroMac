@@ -50,7 +50,7 @@ export function useExportData() {
       link.parentNode?.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast.success(`${module} exported successfully`);
+    //   toast.success(`${module} exported successfully`);
     } catch (error: any) {
       console.error("[EXPORT ERROR]", error);
       if(error?.message){
