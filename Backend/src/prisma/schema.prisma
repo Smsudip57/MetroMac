@@ -121,11 +121,13 @@ model Task {
     creator     User       @relation("TaskCreator", fields: [created_by], references: [id])
     start_date  DateTime   @db.Date
     end_date    DateTime   @db.Date
-    status      TaskStatus @default(pending)
-    hold_reason String?    // Reason for on_hold status
-    is_archived Boolean    @default(false)
-    created_at  DateTime   @default(now())
-    updated_at  DateTime   @default(now()) @updatedAt
+    status         TaskStatus @default(pending)
+    hold_reason    String?    // Reason for on_hold status
+    submission_date DateTime?  @db.Date // Date when task was submitted
+    completion_date DateTime?  @db.Date // Date when task was completed
+    is_archived    Boolean    @default(false)
+    created_at     DateTime   @default(now())
+    updated_at     DateTime   @default(now()) @updatedAt
 
     // Relations
     comments    TaskComment[]
@@ -134,11 +136,13 @@ model Task {
 }
 
 enum TaskStatus {
-    pending    // Task is pending
-    active     // Task is active/in progress
-    on_hold    // Task is on hold
-    completed  // Task is completed
-    cancelled  // Task is cancelled
+    pending      // Task is pending
+    submitted    // Task is submitted
+    active       // Task is active/in progress (deprecated, use in_progress)
+    in_progress  // Task is active/in progress
+    on_hold      // Task is on hold
+    completed    // Task is completed
+    cancelled    // Task is cancelled
 }
 
 // Push Notifications

@@ -249,8 +249,8 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
                   <NextImage
                     src={settings.company_icon}
                     alt="Company Icon"
-                    width={28}
-                    height={28}
+                    width={100000000000000000}
+                    height={100000000000000000}
                     quality={100}
                     className="w-full h-full object-cover"
                   />
@@ -292,8 +292,8 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
                   <NextImage
                     src={settings.company_logo}
                     alt="Company Logo"
-                    width={100}
-                    height={100}
+                    width={100000000000000000}
+                    height={100000000000000000}
                     quality={100}
                     className="h-10 w-auto"
                   />

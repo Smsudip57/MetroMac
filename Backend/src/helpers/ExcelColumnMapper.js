@@ -1,193 +1,5 @@
 export class ColumnMapper {
   static configs = {
-    quotation: {
-      // DB field → Display config
-      quotation_number: {
-        header: "Quotation Number",
-        dbField: "quotation_number",
-        type: "string",
-      },
-      reference: {
-        header: "Reference",
-        dbField: "reference",
-        type: "string",
-      },
-      customer_name: {
-        header: "Customer Name",
-        dbField: "customer.firstName",
-        type: "string",
-        formatter: (obj) =>
-          obj.customer
-            ? `${obj.customer.firstName} ${obj.customer.lastName}`
-            : "",
-      },
-      customer_email: {
-        header: "Customer Email",
-        dbField: "customer.email",
-        type: "string",
-      },
-      customer_phone: {
-        header: "Customer Phone",
-        dbField: "customer.phone",
-        type: "string",
-      },
-      issue_date: {
-        header: "Issue Date",
-        dbField: "issue_date",
-        type: "date",
-        format: "YYYY-MM-DD",
-      },
-      valid_until: {
-        header: "Valid Until",
-        dbField: "valid_until",
-        type: "date",
-        format: "YYYY-MM-DD",
-      },
-      currency: {
-        header: "Currency",
-        dbField: "currency",
-        type: "string",
-      },
-      tax_rate: {
-        header: "Tax Rate (%)",
-        dbField: "tax_rate",
-        type: "decimal",
-      },
-      tax_amount: {
-        header: "Tax Amount",
-        dbField: "tax_amount",
-        type: "decimal",
-      },
-      status: {
-        header: "Status",
-        dbField: "status.name",
-        type: "string",
-      },
-      notes: {
-        header: "Notes",
-        dbField: "notes",
-        type: "string",
-      },
-      terms: {
-        header: "Terms & Conditions",
-        dbField: "terms",
-        type: "string",
-      },
-      created_at: {
-        header: "Created Date",
-        dbField: "created_at",
-        type: "date",
-        format: "YYYY-MM-DD HH:mm:ss",
-      },
-    },
-
-    invoice: {
-      // DB field → Display config
-      invoice_number: {
-        header: "Invoice Number",
-        dbField: "invoice_number",
-        type: "string",
-      },
-      reference: {
-        header: "Reference",
-        dbField: "reference",
-        type: "string",
-      },
-      quotation_number: {
-        header: "Quotation Number",
-        dbField: "quotation.quotation_number",
-        type: "string",
-      },
-      customer_name: {
-        header: "Customer Name",
-        dbField: "quotation.customer.firstName",
-        type: "string",
-        formatter: (obj) =>
-          obj.quotation?.customer
-            ? `${obj.quotation.customer.firstName} ${obj.quotation.customer.lastName}`
-            : "",
-      },
-      customer_email: {
-        header: "Customer Email",
-        dbField: "quotation.customer.email",
-        type: "string",
-      },
-      customer_phone: {
-        header: "Customer Phone",
-        dbField: "quotation.customer.phone",
-        type: "string",
-      },
-      issue_date: {
-        header: "Issue Date",
-        dbField: "issue_date",
-        type: "date",
-        format: "YYYY-MM-DD",
-      },
-      due_date: {
-        header: "Due Date",
-        dbField: "due_date",
-        type: "date",
-        format: "YYYY-MM-DD",
-      },
-      currency: {
-        header: "Currency",
-        dbField: "currency",
-        type: "string",
-      },
-      discount_type: {
-        header: "Discount Type",
-        dbField: "discount_type",
-        type: "string",
-      },
-      discount_value: {
-        header: "Discount Value",
-        dbField: "discount_value",
-        type: "decimal",
-      },
-      tax_rate: {
-        header: "Tax Rate (%)",
-        dbField: "tax_rate",
-        type: "decimal",
-      },
-      tax_amount: {
-        header: "Tax Amount",
-        dbField: "tax_amount",
-        type: "decimal",
-      },
-      status: {
-        header: "Status",
-        dbField: "status.name",
-        type: "string",
-      },
-      payment_method: {
-        header: "Payment Method",
-        dbField: "payment_method.name",
-        type: "string",
-      },
-      payment_date: {
-        header: "Payment Date",
-        dbField: "payment_date",
-        type: "date",
-        format: "YYYY-MM-DD",
-      },
-      notes: {
-        header: "Notes",
-        dbField: "notes",
-        type: "string",
-      },
-      terms: {
-        header: "Terms & Conditions",
-        dbField: "terms",
-        type: "string",
-      },
-      created_at: {
-        header: "Created Date",
-        dbField: "created_at",
-        type: "date",
-        format: "YYYY-MM-DD HH:mm:ss",
-      },
-    },
-
     task: {
       title: {
         header: "Task Title",
@@ -239,63 +51,17 @@ export class ColumnMapper {
         type: "date",
         format: "YYYY-MM-DD",
       },
-    },
-
-    lead: {
-      lead_number: {
-        header: "Lead Number",
-        dbField: "lead_number",
-        type: "string",
+      submission_date: {
+        header: "Submitted Date",
+        dbField: "submission_date",
+        type: "date",
+        format: "YYYY-MM-DD",
       },
-      title: {
-        header: "Title",
-        dbField: "title",
-        type: "string",
-      },
-      first_name: {
-        header: "First Name",
-        dbField: "first_name",
-        type: "string",
-      },
-      last_name: {
-        header: "Last Name",
-        dbField: "last_name",
-        type: "string",
-      },
-      email: {
-        header: "Email",
-        dbField: "email",
-        type: "string",
-      },
-      phone: {
-        header: "Phone",
-        dbField: "phone",
-        type: "string",
-      },
-      company_name: {
-        header: "Company",
-        dbField: "company_name",
-        type: "string",
-      },
-      status: {
-        header: "Status",
-        dbField: "status.name",
-        type: "string",
-      },
-      source: {
-        header: "Source",
-        dbField: "source.name",
-        type: "string",
-      },
-      estimated_budget: {
-        header: "Estimated Budget",
-        dbField: "estimated_budget",
-        type: "decimal",
-      },
-      notes: {
-        header: "Notes",
-        dbField: "notes",
-        type: "string",
+      completion_date: {
+        header: "Completed Date",
+        dbField: "completion_date",
+        type: "date",
+        format: "YYYY-MM-DD",
       },
     },
   };
@@ -498,7 +264,7 @@ export class ColumnMapper {
     if (!config) return null;
 
     const found = Object.entries(config).find(
-      ([_, col]) => col.header === excelHeader
+      ([_, col]) => col.header === excelHeader,
     );
     return found ? found[1].dbField : null;
   }

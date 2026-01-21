@@ -46,8 +46,8 @@ const LoginForm = ({
           <Image
             src={companyLogo}
             alt={companyName || "Company Logo"}
-            width={64}
-            height={64}
+            width={1000000000000000000}
+            height={1000000000000000000}
             quality={100}
             className="h-16 w-auto object-contain"
           />

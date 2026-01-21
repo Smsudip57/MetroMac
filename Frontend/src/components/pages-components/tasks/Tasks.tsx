@@ -1,7 +1,8 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import AddEditTaskModal from "./AddEditTaskModal";
 import TasksTable from "./TasksTable";
+import FilterTaskModal from "./FilterTaskModal";
 import ContainerWrapper from "@/components/reuseable/wrapper/ContainerWrapper";
 import CustomStatsCard from "@/components/reuseable/Shared/CustomStatsCard";
 import SearchField from "@/components/reuseable/Shared/SearchField";
@@ -21,6 +22,12 @@ export default function Tasks({ type = "normal" }: TasksProps) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
+  const [dateFilters, setDateFilters] = useState({
+    fromDate: "",
+    toDate: "",
+    assignedTo: "",
+  });
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
 
   // Get user from Redux
   const { user } = useAppSelector((state) => state.auth);
@@ -39,6 +46,45 @@ export default function Tasks({ type = "normal" }: TasksProps) {
     setEditingTask(null);
   };
 
+  const handleApplyFilters = (filters: {
+    fromDate?: string;
+    toDate?: string;
+    assignedTo?: string;
+  }) => {
+    setDateFilters({
+      fromDate: filters.fromDate || "",
+      toDate: filters.toDate || "",
+      assignedTo: filters.assignedTo || "",
+    });
+  };
+
+  // Format filters for backend export API
+  const formatFiltersForExport = () => {
+    const formattedFilters: any = {};
+
+    if (searchTerm) {
+      formattedFilters.search = searchTerm;
+    }
+
+    if (statusFilter && statusFilter !== "all") {
+      formattedFilters.status = statusFilter;
+    }
+
+    if (dateFilters.fromDate) {
+      formattedFilters.fromDate = dateFilters.fromDate;
+    }
+    if (dateFilters.toDate) {
+      formattedFilters.toDate = dateFilters.toDate;
+    }
+    if (dateFilters.assignedTo) {
+      formattedFilters.assigned_to = dateFilters.assignedTo;
+    }
+
+    formattedFilters.showArchived = type === "archive" ? "true" : "false";
+
+    return formattedFilters;
+  };
+
   const statsData = taskStatsResponse?.data
     ? [
         {
@@ -50,12 +96,16 @@ export default function Tasks({ type = "normal" }: TasksProps) {
           icon: (
             <ContainerWrapper className="!p-2 !bg-primary/10 rounded-lg max-h-max">
               <UsersIcon className=" text-primary/80 hidden sm+:block" />
-              <UsersIcon className=" text-primary/80 sm+:hidden !mt-0" width={16} height={16}/>
+              <UsersIcon
+                className=" text-primary/80 sm+:hidden !mt-0"
+                width={16}
+                height={16}
+              />
             </ContainerWrapper>
           ),
         },
         {
-          label: "Active",
+          label: "In Progress",
           value: taskStatsResponse.data.activeTasks || 0,
           // percentageChange: taskStatsResponse.data.activeTasksChange || 0,
           bg: "success",
@@ -90,8 +140,9 @@ export default function Tasks({ type = "normal" }: TasksProps) {
         <CustomStatsCard data={statsData} />
       )}
       <ContainerWrapper>
-        <div className="flex flex-wrap xl:flex-nowrap items-center justify-between gap-4 mb-4 sm+:mb-6"
-         style={type==="archive" ? { marginBottom: 0 } : undefined}
+        <div
+          className="flex flex-wrap xl:flex-nowrap items-center justify-between gap-4 mb-4 sm+:mb-6"
+          style={type === "archive" ? { marginBottom: 0 } : undefined}
         >
           <div className="flex items-center ">
             <SearchField
@@ -102,7 +153,7 @@ export default function Tasks({ type = "normal" }: TasksProps) {
                   ? "Search archived tasks..."
                   : "Search tasks..."
               }
-              className="!block max-w-[190px] flex-1"
+              className="!block w-[190px] sm+:w-auto flex-1"
             />
             {type !== "archive" && (
               <AddEditTaskModal
@@ -118,10 +169,15 @@ export default function Tasks({ type = "normal" }: TasksProps) {
                 onTaskCreated={handleModalClose}
               />
             )}
-            <div className={`w-46 ${type !== "archive" ? "hidden sm+:block ml-4" : "block"}`}>
+            <div
+              className={`w-46 ${
+                type !== "archive" ? "hidden sm+:block ml-4" : "block"
+              }`}
+            >
               {/* Import/Export Toolbar */}
               <ImportExport
                 module="task"
+                filters={formatFiltersForExport()}
                 onImportSuccess={() => {
                   toast.success("Tasks imported successfully!");
                 }}
@@ -132,31 +188,41 @@ export default function Tasks({ type = "normal" }: TasksProps) {
             </div>
           </div>
           <div className="w-full xl:w-auto flex gap-4">
-            {type !== "archive" && <div className="!min-w-36 sm+:hidden block">
-              {/* Import/Export Toolbar */}
-              <ImportExport
-                module="task"
-                onImportSuccess={() => {
-                  toast.success("Tasks imported successfully!");
-                }}
-                onExportSuccess={() => {
-                  toast.success("Tasks exported successfully!");
-                }}
-              />
-            </div>}
             {type !== "archive" && (
-              <CustomTab
-                tabs={[
-                  { key: "all", label: "All Tasks" },
-                  { key: "pending", label: "Pending" },
-                  { key: "active", label: "Active" },
-                  { key: "on_hold", label: "On Hold" },
-                  { key: "completed", label: "Completed" },
-                  { key: "cancelled", label: "Cancelled" },
-                ]}
-                selectedTab={statusFilter}
-                setSelectedTab={setStatusFilter}
-              />
+              <div className="!min-w-36 sm+:hidden block">
+                {/* Import/Export Toolbar */}
+                <ImportExport
+                  module="task"
+                  filters={formatFiltersForExport()}
+                  onImportSuccess={() => {
+                    toast.success("Tasks imported successfully!");
+                  }}
+                  onExportSuccess={() => {
+                    toast.success("Tasks exported successfully!");
+                  }}
+                />
+              </div>
+            )}
+            {type !== "archive" && (
+              <div className="flex gap-4 items-center">
+                <FilterTaskModal
+                  onApplyFilters={handleApplyFilters}
+                  filterButtonRef={filterButtonRef}
+                />
+                <CustomTab
+                  tabs={[
+                    { key: "all", label: "All Tasks" },
+                    { key: "pending", label: "Pending" },
+                    { key: "in_progress", label: "In Progress" },
+                    { key: "submitted", label: "Submitted" },
+                    { key: "on_hold", label: "On Hold" },
+                    { key: "completed", label: "Completed" },
+                    { key: "cancelled", label: "Cancelled" },
+                  ]}
+                  selectedTab={statusFilter}
+                  setSelectedTab={setStatusFilter}
+                />{" "}
+              </div>
             )}
           </div>
         </div>
@@ -166,6 +232,7 @@ export default function Tasks({ type = "normal" }: TasksProps) {
           statusFilter={statusFilter}
           onEditTask={handleEditTask}
           type={type}
+          dateFilters={dateFilters}
         />
       </ContainerWrapper>
     </div>

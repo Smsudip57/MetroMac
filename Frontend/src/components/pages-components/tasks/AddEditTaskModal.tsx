@@ -214,7 +214,7 @@ export default function AddEditTaskModal({
           const alertDate = new Date(alert.alert_date);
           if (alertDate < startDate) {
             toast.error(
-              `Alert date must be equal to or after task start date (${values.start_date})`
+              `Alert date must be equal to or after task start date (${values.start_date})`,
             );
             return;
           }
@@ -224,7 +224,7 @@ export default function AddEditTaskModal({
       // Validate alert frequency
       if (formAlertFrequency > 0 && formAlertFrequency < alerts.length) {
         toast.error(
-          `Alert frequency (${formAlertFrequency}) must be equal to or greater than number of alerts (${alerts.length})`
+          `Alert frequency (${formAlertFrequency}) must be equal to or greater than number of alerts (${alerts.length})`,
         );
         return;
       }
@@ -279,7 +279,8 @@ export default function AddEditTaskModal({
   // Mock data for dropdowns - replace with actual API calls if needed
   const statusOptions = [
     { value: "pending", label: "Pending" },
-    { value: "active", label: "Active" },
+    { value: "submitted", label: "Submitted" },
+    { value: "in_progress", label: "In Progress" },
     { value: "on_hold", label: "On Hold" },
     { value: "completed", label: "Completed" },
     { value: "cancelled", label: "Cancelled" },
@@ -307,7 +308,7 @@ export default function AddEditTaskModal({
 
     if (alertDateTime < startDate) {
       toast.error(
-        `Alert date & time must be equal to or after task start date`
+        `Alert date & time must be equal to or after task start date`,
       );
       return;
     }

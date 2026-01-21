@@ -5,6 +5,9 @@ import ApiError from "../../errors/ApiError.js";
 import { ExcelExporter } from "../../helpers/ExcelExporter.js";
 import { ExcelImporter } from "../../helpers/ExcelImporter.js";
 import { ColumnMapper } from "../../helpers/ExcelColumnMapper.js";
+import { PDFExporter } from "../../helpers/PDFExporter.js";
+import { PDFTemplates } from "../templates/pdfTemplates.js";
+import pdfService from "../services/pdfService.js";
 import Papa from "papaparse";
 
 const prisma = new PrismaClient();
@@ -15,37 +18,57 @@ async function exportData(req, res, next) {
 
     console.log(
       `[EXPORT] Module: ${module}, Format: ${format}, Filters:`,
-      filters
+      filters,
     );
 
     if (!module) {
       return ResponseFormatter.error(
         res,
-        new ApiError(StatusCodes.BAD_REQUEST, "Module name is required")
+        new ApiError(StatusCodes.BAD_REQUEST, "Module name is required"),
       );
     }
 
-    const validFormats = ["csv", "xlsx"];
+    const validFormats = ["csv", "xlsx", "pdf"];
     if (!validFormats.includes(format?.toLowerCase())) {
       return ResponseFormatter.error(
         res,
         new ApiError(
           StatusCodes.BAD_REQUEST,
-          `Format must be one of: ${validFormats.join(", ")}`
-        )
+          `Format must be one of: ${validFormats.join(", ")}`,
+        ),
       );
     }
 
     // Fetch data based on module
-    const data = await fetchDataByModule(module, filters);
+    let data = await fetchDataByModule(module, filters);
+
+    // Apply status-based filtering for tasks to ensure report consistency
+    // This prevents data inconsistency when tasks status is changed after submission/completion
+    if (module?.toLowerCase() === "task") {
+      data = data.map((task) => {
+        const taskCopy = { ...task };
+
+        // Only keep submission_date if status is submitted or completed
+        if (!["submitted", "completed"].includes(task.status)) {
+          taskCopy.submission_date = null;
+        }
+
+        // Only keep completion_date if status is completed
+        if (task.status !== "completed") {
+          taskCopy.completion_date = null;
+        }
+
+        return taskCopy;
+      });
+    }
 
     if (!data || data.length === 0) {
       return ResponseFormatter.error(
         res,
         new ApiError(
           StatusCodes.NOT_FOUND,
-          `No records found for module: ${module}`
-        )
+          `No records found for module: ${module}`,
+        ),
       );
     }
 
@@ -63,6 +86,31 @@ async function exportData(req, res, next) {
       contentType =
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
       filename = `${module}-export-${Date.now()}.xlsx`;
+    } else if (format?.toLowerCase() === "pdf") {
+      // PDF format
+      let htmlContent;
+      let formattedData;
+
+      if (module?.toLowerCase() === "task") {
+        formattedData = PDFExporter.formatTasksForPDF(data);
+        const summary = PDFTemplates.calculateSummary(formattedData, "task");
+        htmlContent = PDFTemplates.taskReport(formattedData, summary);
+      } else {
+        return ResponseFormatter.error(
+          res,
+          new ApiError(
+            StatusCodes.BAD_REQUEST,
+            `PDF export is only supported for tasks module`,
+          ),
+        );
+      }
+
+      buffer = await pdfService.generatePDF(htmlContent, {
+        format: "A4",
+        margin: { top: "10mm", right: "10mm", bottom: "10mm", left: "10mm" },
+      });
+      contentType = "application/pdf";
+      filename = `${module}-export-${Date.now()}.pdf`;
     } else {
       // CSV format
       buffer = await exportToCSV(data, module);
@@ -91,14 +139,14 @@ async function importData(req, res, next) {
     if (!module) {
       return ResponseFormatter.error(
         res,
-        new ApiError(StatusCodes.BAD_REQUEST, "Module name is required")
+        new ApiError(StatusCodes.BAD_REQUEST, "Module name is required"),
       );
     }
 
     if (!req.file) {
       return ResponseFormatter.error(
         res,
-        new ApiError(StatusCodes.BAD_REQUEST, "File is required")
+        new ApiError(StatusCodes.BAD_REQUEST, "File is required"),
       );
     }
 
@@ -108,15 +156,15 @@ async function importData(req, res, next) {
         res,
         new ApiError(
           StatusCodes.BAD_REQUEST,
-          `Mode must be one of: ${validModes.join(", ")}`
-        )
+          `Mode must be one of: ${validModes.join(", ")}`,
+        ),
       );
     }
 
     ExcelImporter.validateFile(req.file);
 
     console.log(
-      `[IMPORT] File received: ${req.file.originalname} (${req.file.size} bytes)`
+      `[IMPORT] File received: ${req.file.originalname} (${req.file.size} bytes)`,
     );
 
     let importResult;
@@ -135,7 +183,7 @@ async function importData(req, res, next) {
     }
 
     console.log(
-      `[IMPORT] Parsed records: ${importResult.records.length}, Errors: ${importResult.errors.length}`
+      `[IMPORT] Parsed records: ${importResult.records.length}, Errors: ${importResult.errors.length}`,
     );
 
     if (importResult.errors.length > 0 && importResult.records.length === 0) {
@@ -144,8 +192,8 @@ async function importData(req, res, next) {
         new ApiError(
           StatusCodes.BAD_REQUEST,
           "File parsing failed - no valid records found",
-          { errors: importResult.errors.slice(0, 10) } // Show first 10 errors
-        )
+          { errors: importResult.errors.slice(0, 10) }, // Show first 10 errors
+        ),
       );
     }
 
@@ -153,11 +201,11 @@ async function importData(req, res, next) {
     const processResult = await processImportedRecords(
       importResult.records,
       module,
-      mode
+      mode,
     );
 
     console.log(
-      `[IMPORT] Processed - Success: ${processResult.success}, Failed: ${processResult.failed}`
+      `[IMPORT] Processed - Success: ${processResult.success}, Failed: ${processResult.failed}`,
     );
 
     return ResponseFormatter.success(
@@ -172,7 +220,7 @@ async function importData(req, res, next) {
         warnings: importResult.errors.slice(0, 10), // Show first 10 parsing warnings
         timestamp: new Date().toISOString(),
       },
-      `Import completed: ${processResult.success} succeeded, ${processResult.failed} failed`
+      `Import completed: ${processResult.success} succeeded, ${processResult.failed} failed`,
     );
   } catch (error) {
     console.error("[IMPORT ERROR]", error);
@@ -189,7 +237,7 @@ async function getImportExportConfig(req, res, next) {
     if (!module) {
       return ResponseFormatter.error(
         res,
-        new ApiError(StatusCodes.BAD_REQUEST, "Module name is required")
+        new ApiError(StatusCodes.BAD_REQUEST, "Module name is required"),
       );
     }
 
@@ -200,8 +248,8 @@ async function getImportExportConfig(req, res, next) {
         res,
         new ApiError(
           StatusCodes.BAD_REQUEST,
-          `No configuration found for module: ${module}`
-        )
+          `No configuration found for module: ${module}`,
+        ),
       );
     }
 
@@ -213,10 +261,10 @@ async function getImportExportConfig(req, res, next) {
         module,
         totalColumns: mappingInfo.length,
         columns: mappingInfo,
-        supportedFormats: ["csv", "xlsx"],
+        supportedFormats: ["csv", "xlsx", "pdf"],
         supportedModes: ["insert", "update", "merge"],
       },
-      "Configuration retrieved successfully"
+      "Configuration retrieved successfully",
     );
   } catch (error) {
     console.error("[CONFIG ERROR]", error);
@@ -248,55 +296,6 @@ async function fetchDataByModule(module, filters) {
         where: buildWhereClause(module, filters),
       });
 
-    case "quotation":
-      return await prisma.quotation.findMany({
-        include: {
-          customer: {
-            select: {
-              firstName: true,
-              lastName: true,
-              email: true,
-              phone: true,
-            },
-          },
-          status: { select: { name: true } },
-        },
-        take: parseInt(filters.limit) || 1000,
-        where: buildWhereClause(module, filters),
-      });
-
-    case "invoice":
-      return await prisma.invoice.findMany({
-        include: {
-          quotation: {
-            select: {
-              quotation_number: true,
-              customer: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                },
-              },
-            },
-          },
-          status: { select: { name: true } },
-          payment_method: { select: { name: true } },
-          sales_items: { select: { total_price: true } },
-        },
-        take: parseInt(filters.limit) || 1000,
-        where: buildWhereClause(module, filters),
-      });
-
-    case "lead":
-      return await prisma.lead.findMany({
-        include: {
-          status: { select: { name: true } },
-          source: { select: { name: true } },
-        },
-        take: parseInt(filters.limit) || 1000,
-        where: buildWhereClause(module, filters),
-      });
-
     default:
       throw new Error(`Unsupported module: ${module}`);
   }
@@ -305,6 +304,7 @@ async function fetchDataByModule(module, filters) {
 function buildWhereClause(module, filters) {
   const where = {};
 
+  // Common search filter
   if (filters.search) {
     where.OR = [{ notes: { contains: filters.search, mode: "insensitive" } }];
 
@@ -314,38 +314,91 @@ function buildWhereClause(module, filters) {
         { description: { contains: filters.search, mode: "insensitive" } },
       ];
     }
-    if (module === "quotation") {
-      where.OR.push({
-        quotation_number: { contains: filters.search, mode: "insensitive" },
-      });
-    }
-    if (module === "invoice") {
-      where.OR.push({
-        invoice_number: { contains: filters.search, mode: "insensitive" },
-      });
-    }
-    if (module === "lead") {
-      where.OR = [
-        { title: { contains: filters.search, mode: "insensitive" } },
-        { first_name: { contains: filters.search, mode: "insensitive" } },
-        { email: { contains: filters.search, mode: "insensitive" } },
-      ];
-    }
   }
 
-  if (filters.status_id) {
-    where.status_id = parseInt(filters.status_id);
-  }
-
-  if (filters.date_from || filters.date_to) {
-    const dateField = module === "lead" ? "created_at" : "issue_date";
-    where[dateField] = {};
-
-    if (filters.date_from) {
-      where[dateField].gte = new Date(filters.date_from);
+  // Task-specific filters
+  if (module === "task") {
+    // Status filter
+    if (
+      filters.status &&
+      ["pending", "active", "on_hold", "completed", "cancelled"].includes(
+        filters.status,
+      )
+    ) {
+      where.status = filters.status;
     }
-    if (filters.date_to) {
-      where[dateField].lte = new Date(filters.date_to);
+
+    // Assigned to filter
+    if (filters.assigned_to) {
+      where.assigned_to = parseInt(filters.assigned_to);
+    }
+
+    // Reporter filter
+    if (filters.reporter_id) {
+      where.reporter_id = parseInt(filters.reporter_id);
+    }
+
+    // Date range filter (fromDate and toDate)
+    // Tasks must have: start_date >= fromDate AND end_date <= toDate
+    if (filters.fromDate || filters.toDate) {
+      const andConditions = [];
+
+      if (filters.fromDate) {
+        // Parse date string (format: YYYY-MM-DD) and create UTC date at start of day
+        const [year, month, day] = filters.fromDate.split("-");
+        const fromDateObj = new Date(
+          Date.UTC(
+            parseInt(year),
+            parseInt(month) - 1,
+            parseInt(day),
+            0,
+            0,
+            0,
+            0,
+          ),
+        );
+
+        // Task start_date must be >= fromDate
+        andConditions.push({ start_date: { gte: fromDateObj } });
+      }
+
+      if (filters.toDate) {
+        // Parse date string (format: YYYY-MM-DD) and create UTC date at end of day
+        const [year, month, day] = filters.toDate.split("-");
+        const toDateObj = new Date(
+          Date.UTC(
+            parseInt(year),
+            parseInt(month) - 1,
+            parseInt(day),
+            23,
+            59,
+            59,
+            999,
+          ),
+        );
+
+        // Task end_date must be <= toDate
+        andConditions.push({ end_date: { lte: toDateObj } });
+      }
+
+      if (andConditions.length > 0) {
+        if (where.OR) {
+          where = {
+            AND: [{ OR: where.OR }, ...andConditions],
+          };
+        } else {
+          where = {
+            AND: andConditions,
+          };
+        }
+      }
+    }
+
+    // Archive filter
+    if (filters.showArchived === "true") {
+      where.is_archived = true;
+    } else {
+      where.is_archived = false;
     }
   }
 
@@ -356,7 +409,7 @@ async function exportToCSV(data, module) {
   const columns = ColumnMapper.getExportColumns(module);
 
   const formattedData = data.map((record) =>
-    ColumnMapper.formatDataForExcel(record, module)
+    ColumnMapper.formatDataForExcel(record, module),
   );
 
   const headers = Object.values(columns).map((col) => col.header);
@@ -438,15 +491,6 @@ async function processImportedRecords(records, module, mode) {
   for (const record of records) {
     try {
       switch (module?.toLowerCase()) {
-        case "quotation":
-          await processQuotationImport(record, mode);
-          break;
-        case "invoice":
-          await processInvoiceImport(record, mode);
-          break;
-        case "lead":
-          await processLeadImport(record, mode);
-          break;
         default:
           throw new Error(`Unsupported module: ${module}`);
       }
@@ -464,43 +508,6 @@ async function processImportedRecords(records, module, mode) {
   }
 
   return result;
-}
-
-async function processQuotationImport(record, mode) {
-  const { data } = record;
-
-  if (mode === "insert" || mode === "merge") {
-    // For now, just validate data structure
-    if (!data.quotation_number) {
-      throw new Error("quotation_number is required");
-    }
-    // In real implementation, would create in database
-    console.log(`[QUOTATION] Importing: ${data.quotation_number}`);
-  }
-}
-
-async function processInvoiceImport(record, mode) {
-  const { data } = record;
-
-  if (mode === "insert" || mode === "merge") {
-    if (!data.invoice_number) {
-      throw new Error("invoice_number is required");
-    }
-    // In real implementation, would create in database
-    console.log(`[INVOICE] Importing: ${data.invoice_number}`);
-  }
-}
-
-async function processLeadImport(record, mode) {
-  const { data } = record;
-
-  if (mode === "insert" || mode === "merge") {
-    if (!data.first_name || !data.last_name) {
-      throw new Error("first_name and last_name are required");
-    }
-    // In real implementation, would create in database
-    console.log(`[LEAD] Importing: ${data.first_name} ${data.last_name}`);
-  }
 }
 
 export { exportData, importData, getImportExportConfig };

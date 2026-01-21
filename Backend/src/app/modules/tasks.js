@@ -49,7 +49,7 @@ async function createTask(req, res, next) {
     if (!start_date || !end_date) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        "Start date and end date are required"
+        "Start date and end date are required",
       );
     }
 
@@ -59,7 +59,7 @@ async function createTask(req, res, next) {
     if (startDate > endDate) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        "Start date must be before or equal to end date"
+        "Start date must be before or equal to end date",
       );
     }
 
@@ -87,13 +87,6 @@ async function createTask(req, res, next) {
       if (!assignee) {
         throw new ApiError(StatusCodes.NOT_FOUND, "Assignee not found");
       }
-
-      if (assignee.role.name.toLowerCase() === "manager") {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          "Assigned user cannot be a manager"
-        );
-      }
     }
 
     // Validate alerts
@@ -102,14 +95,14 @@ async function createTask(req, res, next) {
         if (!alert.alert_date) {
           throw new ApiError(
             StatusCodes.BAD_REQUEST,
-            "Alert date is required for all alerts"
+            "Alert date is required for all alerts",
           );
         }
         const alertDate = new Date(alert.alert_date);
         if (alertDate < startDate) {
           throw new ApiError(
             StatusCodes.BAD_REQUEST,
-            `Alert date must be equal to or after task start date (${start_date})`
+            `Alert date must be equal to or after task start date (${start_date})`,
           );
         }
       }
@@ -170,23 +163,40 @@ async function createTask(req, res, next) {
           taskAlerts.sort(
             (a, b) =>
               new Date(a.alert_date).getTime() -
-              new Date(b.alert_date).getTime()
+              new Date(b.alert_date).getTime(),
           );
         }
       }
     }
 
     // Create task with alerts
+    const taskData = {
+      title: title.trim(),
+      description,
+      assigned_to: assigned_to ? parseInt(assigned_to) : null,
+      reporter_id: parseInt(reporter_id),
+      created_by: parseInt(created_by),
+      start_date: new Date(start_date),
+      end_date: new Date(end_date),
+      status: status || "pending",
+    };
+
+    // Set submission_date if status is submitted
+    if (status === "submitted") {
+      taskData.submission_date = new Date();
+    }
+
+    // If task is created with completed status, set both submission_date and completion_date to now
+    // This handles the case where the creator/issuer directly marks task as completed
+    if (status === "completed") {
+      const now = new Date();
+      taskData.submission_date = now;
+      taskData.completion_date = now;
+    }
+
     const task = await prisma.task.create({
       data: {
-        title: title.trim(),
-        description,
-        assigned_to: assigned_to ? parseInt(assigned_to) : null,
-        reporter_id: parseInt(reporter_id),
-        created_by: parseInt(created_by),
-        start_date: new Date(start_date),
-        end_date: new Date(end_date),
-        status: status || "pending",
+        ...taskData,
         taskAlerts: {
           create: taskAlerts.map((alert) => ({
             alert_date: new Date(alert.alert_date),
@@ -229,7 +239,7 @@ async function createTask(req, res, next) {
         const emailHtml = taskAssignmentTemplate(
           assigneeName,
           reporterName,
-          task
+          task,
         );
 
         await emailService.sendEmail({
@@ -267,7 +277,7 @@ async function createTask(req, res, next) {
         const emailHtml = taskReporterSupervisionTemplate(
           reporterName,
           assigneeName,
-          task
+          task,
         );
 
         await emailService.sendEmail({
@@ -294,7 +304,7 @@ async function createTask(req, res, next) {
       } catch (pushError) {
         console.error(
           "Failed to send reporter supervision push notification:",
-          pushError
+          pushError,
         );
       }
     }
@@ -332,7 +342,10 @@ async function getTaskStats(req, res, next) {
       await Promise.all([
         prisma.task.count({ where: baseWhere }),
         prisma.task.count({
-          where: { ...baseWhere, status: "active" },
+          where: {
+            ...baseWhere,
+            status: { in: ["in_progress", "submitted"] },
+          },
         }),
         prisma.task.count({
           where: { ...baseWhere, status: "completed" },
@@ -374,6 +387,8 @@ async function getTasks(req, res, next) {
       status,
       assigned_to,
       reporter_id,
+      fromDate,
+      toDate,
       sortBy = "created_at",
       sortOrder = "desc",
       showArchived = false,
@@ -419,21 +434,110 @@ async function getTasks(req, res, next) {
     // Status filter
     if (
       status &&
-      ["pending", "active", "on_hold", "completed", "cancelled"].includes(
-        status
-      )
+      [
+        "pending",
+        "submitted",
+        "active",
+        "in_progress",
+        "on_hold",
+        "completed",
+        "cancelled",
+      ].includes(status)
     ) {
       where.status = status;
     }
 
-    // Assigned to filter (skip for managers to prevent bypass)
-    if (assigned_to && !isManager) {
+    // Assigned to filter
+    if (assigned_to) {
       where.assigned_to = parseInt(assigned_to);
     }
 
     // Reporter filter (skip for managers to prevent bypass)
     if (reporter_id && !isManager) {
       where.reporter_id = parseInt(reporter_id);
+    }
+
+    // Date range filter (fromDate and toDate)
+    // Tasks must have: start_date >= fromDate AND end_date <= toDate
+    if (fromDate || toDate) {
+      const andConditions = [];
+
+      if (fromDate) {
+        // Parse date string (format: YYYY-MM-DD) and create UTC date at start of day
+        const [year, month, day] = fromDate.split("-");
+        const fromDateObj = new Date(
+          Date.UTC(
+            parseInt(year),
+            parseInt(month) - 1,
+            parseInt(day),
+            0,
+            0,
+            0,
+            0,
+          ),
+        );
+
+        // Task start_date must be >= fromDate
+        andConditions.push({ start_date: { gte: fromDateObj } });
+      }
+
+      if (toDate) {
+        // Parse date string (format: YYYY-MM-DD) and create UTC date at end of day
+        const [year, month, day] = toDate.split("-");
+        const toDateObj = new Date(
+          Date.UTC(
+            parseInt(year),
+            parseInt(month) - 1,
+            parseInt(day),
+            23,
+            59,
+            59,
+            999,
+          ),
+        );
+
+        // Task end_date must be <= toDate
+        andConditions.push({ end_date: { lte: toDateObj } });
+      }
+
+      if (andConditions.length > 0) {
+        // Extract current where conditions (excluding AND if it exists)
+        const currentConditions = [];
+
+        if (where.AND) {
+          // If AND already exists, add date conditions to it
+          where.AND.push(...andConditions);
+        } else if (where.OR) {
+          // If OR exists (manager filter), wrap both OR and new conditions in AND
+          currentConditions.push({ OR: where.OR });
+
+          // Add simple filters (status, assigned_to, reporter_id) to AND
+          if (where.status !== undefined) {
+            currentConditions.push({ status: where.status });
+            delete where.status;
+          }
+          if (where.assigned_to !== undefined) {
+            currentConditions.push({ assigned_to: where.assigned_to });
+            delete where.assigned_to;
+          }
+          if (where.reporter_id !== undefined) {
+            currentConditions.push({ reporter_id: where.reporter_id });
+            delete where.reporter_id;
+          }
+
+          // Add date conditions
+          currentConditions.push(...andConditions);
+
+          where = {
+            AND: currentConditions,
+          };
+        } else {
+          // No OR or AND, just add date conditions as AND
+          where = {
+            AND: andConditions,
+          };
+        }
+      }
     }
 
     // Build orderBy dynamically
@@ -632,7 +736,7 @@ async function updateTask(req, res, next) {
       if (newStartDate > newEndDate) {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
-          "Start date must be before or equal to end date"
+          "Start date must be before or equal to end date",
         );
       }
     }
@@ -695,12 +799,6 @@ async function updateTask(req, res, next) {
       if (!newAssignee) {
         throw new ApiError(StatusCodes.NOT_FOUND, "Assignee not found");
       }
-      if (newAssignee.role.name.toLowerCase() === "manager") {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          "Assigned user cannot be a manager"
-        );
-      }
     }
 
     // Validate alerts
@@ -712,14 +810,14 @@ async function updateTask(req, res, next) {
         if (!alert.alert_date) {
           throw new ApiError(
             StatusCodes.BAD_REQUEST,
-            "Alert date is required for all alerts"
+            "Alert date is required for all alerts",
           );
         }
         const alertDate = new Date(alert.alert_date);
         if (alertDate < finalStartDate) {
           throw new ApiError(
             StatusCodes.BAD_REQUEST,
-            `Alert date must be equal to or after task start date`
+            `Alert date must be equal to or after task start date`,
           );
         }
       }
@@ -784,7 +882,7 @@ async function updateTask(req, res, next) {
           taskAlerts.sort(
             (a, b) =>
               new Date(a.alert_date).getTime() -
-              new Date(b.alert_date).getTime()
+              new Date(b.alert_date).getTime(),
           );
         }
       }
@@ -792,6 +890,12 @@ async function updateTask(req, res, next) {
 
     const isStatusCompletedUpdate =
       changes.status && changes.status.new === "completed";
+    const isStatusInProgressUpdate =
+      changes.status && changes.status.new === "in_progress";
+    const isStatusSubmittedUpdate =
+      changes.status && changes.status.new === "submitted";
+    const isStatusSubmittedorInProgress =
+      isStatusSubmittedUpdate || isStatusInProgressUpdate;
     const isTryingToUpdateStatus =
       changes.status && changes.status.new !== currentTask.status;
     const isAssigneeTryingToUpdateThatHeDidntCreate =
@@ -805,18 +909,18 @@ async function updateTask(req, res, next) {
         JSON.stringify(
           taskAlerts
             .map((a) => new Date(a.alert_date).getTime())
-            .sort((a, b) => a - b)
+            .sort((a, b) => a - b),
         ) !==
           JSON.stringify(
             currentTask.taskAlerts
               .map((a) => new Date(a.alert_date).getTime())
-              .sort((a, b) => a - b)
+              .sort((a, b) => a - b),
           ));
 
     // if assignee trys to update more than status and he didn't create that task, block it, but allow if he assigned that task to himself
     if (
       !req.user.is_super_user &&
-      ((isTryingToUpdateStatus &&
+      ((isStatusSubmittedorInProgress &&
         isAssigneeTryingToUpdateThatHeDidntCreate &&
         (Object.keys(changes).length > 1 || alertsModified)) ||
         (!isTryingToUpdateStatus &&
@@ -825,7 +929,7 @@ async function updateTask(req, res, next) {
     ) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        "You can only update status: completed!"
+        "You can only update status to in_progress or submitted!",
       );
     }
 
@@ -838,7 +942,7 @@ async function updateTask(req, res, next) {
       if (!canArchive) {
         throw new ApiError(
           StatusCodes.FORBIDDEN,
-          "Only the reporter, task creator, or super user can archive tasks"
+          "Only the reporter, task creator, or super user can archive tasks",
         );
       }
       isArchiving = true;
@@ -855,12 +959,20 @@ async function updateTask(req, res, next) {
     if (end_date !== undefined) data.end_date = new Date(end_date);
     if (status !== undefined) {
       data.status = status;
+      // Set submission_date when status changes to submitted
+      if (status === "submitted" && currentTask.status !== "submitted") {
+        data.submission_date = new Date();
+      }
+      // Set completion_date when status changes to completed
+      if (status === "completed" && currentTask.status !== "completed") {
+        data.completion_date = new Date();
+      }
       // If status is on_hold, capture hold details
       if (status === "on_hold") {
         if (!hold_reason) {
           throw new ApiError(
             StatusCodes.BAD_REQUEST,
-            "Hold reason is required when status is set to on_hold"
+            "Hold reason is required when status is set to on_hold",
           );
         }
         data.hold_reason = hold_reason;
@@ -942,7 +1054,7 @@ async function updateTask(req, res, next) {
         const emailHtml = taskReassignmentTemplate(
           assigneeName,
           reporterName,
-          task
+          task,
         );
 
         await emailService.sendEmail({
@@ -968,7 +1080,7 @@ async function updateTask(req, res, next) {
       } catch (pushError) {
         console.error(
           "Failed to send reassignment push notification:",
-          pushError
+          pushError,
         );
       }
 
@@ -1006,7 +1118,7 @@ async function updateTask(req, res, next) {
         } catch (pushError) {
           console.error(
             "Failed to send unassignment push notification:",
-            pushError
+            pushError,
           );
         }
       }
@@ -1093,7 +1205,7 @@ async function updateTask(req, res, next) {
         const emailHtml = taskReporterSupervisionTemplate(
           newReporterName,
           assigneeName,
-          task
+          task,
         );
 
         await emailService.sendEmail({
@@ -1120,7 +1232,7 @@ async function updateTask(req, res, next) {
       } catch (pushError) {
         console.error(
           "Failed to send new reporter push notification:",
-          pushError
+          pushError,
         );
       }
 
@@ -1134,7 +1246,7 @@ async function updateTask(req, res, next) {
           const emailHtml = taskReporterUnassignmentTemplate(
             oldReporterName,
             newReporter.firstName + " " + newReporter.lastName,
-            task
+            task,
           );
 
           await emailService.sendEmail({
@@ -1161,15 +1273,15 @@ async function updateTask(req, res, next) {
         } catch (pushError) {
           console.error(
             "Failed to send old reporter push notification:",
-            pushError
+            pushError,
           );
         }
       }
     }
 
-    // 3. Send notification to reporter if task is marked as completed by assignee
+    // 3. Send notification to reporter if assignee submits the task
     if (
-      isStatusCompletedUpdate &&
+      isStatusSubmittedUpdate &&
       isAssigneeTryingToUpdateThatHeDidntCreate &&
       task.reporter &&
       task.reporter.email
@@ -1183,42 +1295,166 @@ async function updateTask(req, res, next) {
           `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
           task.reporter.username;
 
-        const emailHtml = taskCompletionTemplate(
-          assigneeName,
-          reporterName,
-          task
-        );
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+            <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h2 style="color: #333; margin-bottom: 20px;">Task Submitted for Review</h2>
+              
+              <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+                Hello <strong>${reporterName}</strong>,
+              </p>
+              
+              <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
+                <strong>${assigneeName}</strong> has submitted the task you are supervising. Please review it and approve or request changes.
+              </p>
+              
+              <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #FF9800; margin-bottom: 30px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 12px 0; font-weight: bold; color: #333; width: 120px;">Task Title:</td>
+                    <td style="padding: 12px 0; color: #666;">${task.title}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Submitted By:</td>
+                    <td style="padding: 12px 0; color: #666;"><strong>${assigneeName}</strong></td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Status:</td>
+                    <td style="padding: 12px 0; color: #FF9800; font-weight: bold;">Submitted</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Submission Time:</td>
+                    <td style="padding: 12px 0; color: #666;">${new Date().toLocaleString()}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                Please log in to the system to review and approve this task.
+              </p>
+            </div>
+          </div>
+        `;
 
         await emailService.sendEmail({
           to: task.reporter.email,
-          subject: `Task Completed: ${task.title}`,
+          subject: `Task Submitted for Review: ${task.title}`,
           html: emailHtml,
         });
       } catch (emailError) {
         console.error(
-          "Failed to send task completion email to reporter:",
-          emailError
+          "Failed to send task submission email to reporter:",
+          emailError,
         );
       }
 
       // Send push notification to reporter
       try {
         await PushNotificationService.sendToUser(task.reporter_id, {
-          title: "Task Completed",
+          title: "Task Submitted for Review",
           body: `${
             task.assignee?.firstName || "Someone"
-          } has completed the task "${task.title}"`,
+          } has submitted the task "${task.title}" for approval`,
           icon: "/icons/notification-icon.png",
           badge: "/icons/notification-badge.png",
           data: {
-            type: "task_completed",
+            type: "task_submitted",
             taskId: task.id,
           },
         });
       } catch (pushError) {
         console.error(
-          "Failed to send task completion push notification:",
-          pushError
+          "Failed to send task submission push notification:",
+          pushError,
+        );
+      }
+    }
+
+    // 3a. Send notification to assignee if reporter completes/approves the submitted task
+    if (
+      isStatusCompletedUpdate &&
+      !isAssigneeTryingToUpdateThatHeDidntCreate &&
+      task.assignee &&
+      task.assignee.email
+    ) {
+      try {
+        const assigneeName =
+          `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
+          task.assignee.username ||
+          "Team Member";
+        const reporterName =
+          `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
+          task.reporter.username;
+
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+            <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h2 style="color: #333; margin-bottom: 20px;">Task Approved!</h2>
+              
+              <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+                Hello <strong>${assigneeName}</strong>,
+              </p>
+              
+              <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
+                <strong>${reporterName}</strong> has approved your submitted task. Great work!
+              </p>
+              
+              <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #4CAF50; margin-bottom: 30px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 12px 0; font-weight: bold; color: #333; width: 120px;">Task Title:</td>
+                    <td style="padding: 12px 0; color: #666;">${task.title}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Approved By:</td>
+                    <td style="padding: 12px 0; color: #666;"><strong>${reporterName}</strong></td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Status:</td>
+                    <td style="padding: 12px 0; color: #4CAF50; font-weight: bold;">Completed</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Approval Time:</td>
+                    <td style="padding: 12px 0; color: #666;">${new Date().toLocaleString()}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                Thank you for completing this task!
+              </p>
+            </div>
+          </div>
+        `;
+
+        await emailService.sendEmail({
+          to: task.assignee.email,
+          subject: `Task Approved: ${task.title}`,
+          html: emailHtml,
+        });
+      } catch (emailError) {
+        console.error(
+          "Failed to send task approval email to assignee:",
+          emailError,
+        );
+      }
+
+      // Send push notification to assignee
+      try {
+        await PushNotificationService.sendToUser(task.assigned_to, {
+          title: "Task Approved",
+          body: `Your submitted task "${task.title}" has been approved`,
+          icon: "/icons/notification-icon.png",
+          badge: "/icons/notification-badge.png",
+          data: {
+            type: "task_approved",
+            taskId: task.id,
+          },
+        });
+      } catch (pushError) {
+        console.error(
+          "Failed to send task approval push notification:",
+          pushError,
         );
       }
     }
@@ -1247,7 +1483,7 @@ async function updateTask(req, res, next) {
         } catch (emailError) {
           console.error(
             "Failed to send hold notification email to reporter:",
-            emailError
+            emailError,
           );
         }
 
@@ -1266,9 +1502,100 @@ async function updateTask(req, res, next) {
         } catch (pushError) {
           console.error(
             "Failed to send hold push notification to reporter:",
-            pushError
+            pushError,
           );
         }
+      }
+    }
+
+    // 4a. Send notification to reporter when assignee changes status to in_progress
+    if (
+      isStatusInProgressUpdate &&
+      isAssigneeTryingToUpdateThatHeDidntCreate &&
+      task.reporter &&
+      task.reporter.email
+    ) {
+      try {
+        const assigneeName =
+          `${task.assignee?.firstName} ${task.assignee?.lastName}`.trim() ||
+          task.assignee?.username ||
+          "Someone";
+        const reporterName =
+          `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
+          task.reporter.username;
+
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+            <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h2 style="color: #333; margin-bottom: 20px;">Task In Progress</h2>
+              
+              <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+                Hello <strong>${reporterName}</strong>,
+              </p>
+              
+              <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
+                <strong>${assigneeName}</strong> has started working on the task you assigned. They have acknowledged and are now actively working on it.
+              </p>
+              
+              <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #2196F3; margin-bottom: 30px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 12px 0; font-weight: bold; color: #333; width: 120px;">Task Title:</td>
+                    <td style="padding: 12px 0; color: #666;">${task.title}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Started By:</td>
+                    <td style="padding: 12px 0; color: #666;"><strong>${assigneeName}</strong></td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Status:</td>
+                    <td style="padding: 12px 0; color: #2196F3; font-weight: bold;">In Progress</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Time:</td>
+                    <td style="padding: 12px 0; color: #666;">${new Date().toLocaleString()}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                You will be notified when the task is submitted for review.
+              </p>
+            </div>
+          </div>
+        `;
+
+        await emailService.sendEmail({
+          to: task.reporter.email,
+          subject: `Task In Progress: ${task.title}`,
+          html: emailHtml,
+        });
+      } catch (emailError) {
+        console.error(
+          "Failed to send task in-progress email to reporter:",
+          emailError,
+        );
+      }
+
+      // Send push notification to reporter
+      try {
+        await PushNotificationService.sendToUser(task.reporter_id, {
+          title: "Task In Progress",
+          body: `${
+            task.assignee?.firstName || "Someone"
+          } has started working on "${task.title}"`,
+          icon: "/icons/notification-icon.png",
+          badge: "/icons/notification-badge.png",
+          data: {
+            type: "task_in_progress",
+            taskId: task.id,
+          },
+        });
+      } catch (pushError) {
+        console.error(
+          "Failed to send task in-progress push notification:",
+          pushError,
+        );
       }
     }
 
@@ -1344,7 +1671,7 @@ async function updateTask(req, res, next) {
       } catch (emailError) {
         console.error(
           "Failed to send status update email to reporter:",
-          emailError
+          emailError,
         );
       }
 
@@ -1367,7 +1694,7 @@ async function updateTask(req, res, next) {
       } catch (pushError) {
         console.error(
           "Failed to send status update push notification to reporter:",
-          pushError
+          pushError,
         );
       }
     }
@@ -1389,7 +1716,7 @@ async function updateTask(req, res, next) {
       } catch (emailError) {
         console.error(
           "Failed to send task archive email to assignee:",
-          emailError
+          emailError,
         );
       }
 
@@ -1409,7 +1736,7 @@ async function updateTask(req, res, next) {
         } catch (pushError) {
           console.error(
             "Failed to send task archive push notification:",
-            pushError
+            pushError,
           );
         }
       }
@@ -1441,7 +1768,7 @@ async function deleteTask(req, res, next) {
     if (req.user?.role?.toLowerCase() === "employee") {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        "Not authorized to delete this task"
+        "Not authorized to delete this task",
       );
     }
 
@@ -1449,7 +1776,7 @@ async function deleteTask(req, res, next) {
     if (!task.is_archived) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        "Only archived tasks can be deleted. Please archive the task first."
+        "Only archived tasks can be deleted. Please archive the task first.",
       );
     }
 
@@ -1538,7 +1865,7 @@ async function addTaskAlert(req, res, next) {
     if (!req.user.is_super_user && req.user.id !== task.reporter_id) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        "Not authorized to add alert to this task"
+        "Not authorized to add alert to this task",
       );
     }
 
@@ -1548,7 +1875,7 @@ async function addTaskAlert(req, res, next) {
         StatusCodes.BAD_REQUEST,
         `Alert date must be equal to or after task start date (${
           task.start_date.toISOString().split("T")[0]
-        })`
+        })`,
       );
     }
 
@@ -1592,7 +1919,7 @@ async function deleteTaskAlert(req, res, next) {
     if (!req.user.is_super_user && req.user.id !== task.reporter_id) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        "Not authorized to delete alert from this task"
+        "Not authorized to delete alert from this task",
       );
     }
 
@@ -1619,7 +1946,7 @@ async function addTaskComment(req, res, next) {
     if (!user_id) {
       throw new ApiError(
         StatusCodes.UNAUTHORIZED,
-        "User must be authenticated to comment"
+        "User must be authenticated to comment",
       );
     }
 
@@ -1691,7 +2018,7 @@ async function addTaskComment(req, res, next) {
           commenterName,
           task,
           content.trim(),
-          false
+          false,
         );
 
         await emailService.sendEmail({
@@ -1701,12 +2028,12 @@ async function addTaskComment(req, res, next) {
         });
 
         console.log(
-          `[CommentNotif] Email sent to assignee (${task.assignee.email})`
+          `[CommentNotif] Email sent to assignee (${task.assignee.email})`,
         );
       } catch (emailError) {
         console.error(
           "[CommentNotif] Failed to send email to assignee:",
-          emailError.message
+          emailError.message,
         );
       }
 
@@ -1726,12 +2053,12 @@ async function addTaskComment(req, res, next) {
         });
 
         console.log(
-          `[CommentNotif] Push notification sent to assignee (ID: ${task.assigned_to})`
+          `[CommentNotif] Push notification sent to assignee (ID: ${task.assigned_to})`,
         );
       } catch (pushError) {
         console.error(
           "[CommentNotif] Failed to send push to assignee:",
-          pushError.message
+          pushError.message,
         );
       }
     }
@@ -1751,7 +2078,7 @@ async function addTaskComment(req, res, next) {
           commenterName,
           task,
           content.trim(),
-          true
+          true,
         );
 
         await emailService.sendEmail({
@@ -1761,12 +2088,12 @@ async function addTaskComment(req, res, next) {
         });
 
         console.log(
-          `[CommentNotif] Email sent to reporter (${task.reporter.email})`
+          `[CommentNotif] Email sent to reporter (${task.reporter.email})`,
         );
       } catch (emailError) {
         console.error(
           "[CommentNotif] Failed to send email to reporter:",
-          emailError.message
+          emailError.message,
         );
       }
 
@@ -1786,12 +2113,12 @@ async function addTaskComment(req, res, next) {
         });
 
         console.log(
-          `[CommentNotif] Push notification sent to reporter (ID: ${task.reporter_id})`
+          `[CommentNotif] Push notification sent to reporter (ID: ${task.reporter_id})`,
         );
       } catch (pushError) {
         console.error(
           "[CommentNotif] Failed to send push to reporter:",
-          pushError.message
+          pushError.message,
         );
       }
     }
@@ -1815,7 +2142,7 @@ async function deleteTaskComment(req, res, next) {
     if (!user_id) {
       throw new ApiError(
         StatusCodes.UNAUTHORIZED,
-        "User must be authenticated"
+        "User must be authenticated",
       );
     }
 
@@ -1831,7 +2158,7 @@ async function deleteTaskComment(req, res, next) {
     if (comment.user_id !== parseInt(user_id)) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        "You can only delete your own comments"
+        "You can only delete your own comments",
       );
     }
 
@@ -1858,14 +2185,14 @@ async function attachAttachmentToTask(req, res, next) {
     if (!user_id) {
       throw new ApiError(
         StatusCodes.UNAUTHORIZED,
-        "User must be authenticated to attach files"
+        "User must be authenticated to attach files",
       );
     }
 
     if (!file_url || !file_name) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        "File URL and file name are required"
+        "File URL and file name are required",
       );
     }
 
@@ -1957,12 +2284,12 @@ async function attachAttachmentToTask(req, res, next) {
         });
 
         console.log(
-          `[AttachmentNotif] Email sent to assignee (${task.assignee.email})`
+          `[AttachmentNotif] Email sent to assignee (${task.assignee.email})`,
         );
       } catch (emailError) {
         console.error(
           "[AttachmentNotif] Failed to send email to assignee:",
-          emailError.message
+          emailError.message,
         );
       }
 
@@ -1982,12 +2309,12 @@ async function attachAttachmentToTask(req, res, next) {
         });
 
         console.log(
-          `[AttachmentNotif] Push notification sent to assignee (ID: ${task.assigned_to})`
+          `[AttachmentNotif] Push notification sent to assignee (ID: ${task.assigned_to})`,
         );
       } catch (pushError) {
         console.error(
           "[AttachmentNotif] Failed to send push to assignee:",
-          pushError.message
+          pushError.message,
         );
       }
     }
@@ -2015,12 +2342,12 @@ async function attachAttachmentToTask(req, res, next) {
         });
 
         console.log(
-          `[AttachmentNotif] Email sent to reporter (${task.reporter.email})`
+          `[AttachmentNotif] Email sent to reporter (${task.reporter.email})`,
         );
       } catch (emailError) {
         console.error(
           "[AttachmentNotif] Failed to send email to reporter:",
-          emailError.message
+          emailError.message,
         );
       }
 
@@ -2040,12 +2367,12 @@ async function attachAttachmentToTask(req, res, next) {
         });
 
         console.log(
-          `[AttachmentNotif] Push notification sent to reporter (ID: ${task.reporter_id})`
+          `[AttachmentNotif] Push notification sent to reporter (ID: ${task.reporter_id})`,
         );
       } catch (pushError) {
         console.error(
           "[AttachmentNotif] Failed to send push to reporter:",
-          pushError.message
+          pushError.message,
         );
       }
     }

@@ -17,18 +17,22 @@ import FormSelect from "./forms/WithoutHookForm/FormSelect";
 import { toast } from "react-hot-toast";
 
 interface ImportExportProps {
-  module: "lead" | "task";
+  module: "task";
+  filters?: any;
   onImportSuccess?: (result: any) => void;
   onExportSuccess?: () => void;
 }
 
 export default function ImportExport({
   module,
+  filters,
   onImportSuccess,
   onExportSuccess,
 }: ImportExportProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [exportFormat, setExportFormat] = useState<"xlsx" | "csv">("xlsx");
+  const [exportFormat, setExportFormat] = useState<"xlsx" | "csv" | "pdf">(
+    "xlsx",
+  );
 
   const { exportData, isExporting } = useExportData();
   const { importData, isImporting, importResult } = useImportData();
@@ -36,7 +40,7 @@ export default function ImportExport({
   // Handle export button click
   const handleExport = async () => {
     try {
-      await exportData(module, exportFormat);
+      await exportData(module, exportFormat, filters);
       onExportSuccess?.();
     } catch (error) {
       console.error("Export failed:", error);
@@ -70,6 +74,7 @@ export default function ImportExport({
   const exportFormatOptions = [
     { value: "xlsx", label: "Excel (XLSX)" },
     { value: "csv", label: "CSV" },
+    { value: "pdf", label: "PDF" },
   ];
 
   return (
@@ -80,7 +85,7 @@ export default function ImportExport({
           label=""
           options={exportFormatOptions}
           value={exportFormat}
-          onChange={(value) => setExportFormat(value as "xlsx" | "csv")}
+          onChange={(value) => setExportFormat(value as "xlsx" | "csv" | "pdf")}
           placeholder="Select format"
           triggerClassName="h-[30px] !text-xs px-3 py-4 rounded-lg"
           optionsClassName="!text-xs"

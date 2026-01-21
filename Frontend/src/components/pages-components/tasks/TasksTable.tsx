@@ -31,6 +31,11 @@ type TasksTableProps = {
   statusFilter?: string;
   onEditTask?: (task: any) => void;
   type?: "archive" | "normal"; // 'archive' for archive mode, 'normal' for delete mode
+  dateFilters?: {
+    fromDate?: string;
+    toDate?: string;
+    assignedTo?: string;
+  };
 };
 
 export default function TasksTable({
@@ -38,6 +43,7 @@ export default function TasksTable({
   statusFilter,
   onEditTask,
   type = "normal",
+  dateFilters,
 }: TasksTableProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
@@ -84,6 +90,11 @@ export default function TasksTable({
       limit: pageSize,
       search: debouncedSearch || undefined,
       status: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
+      assigned_to: dateFilters?.assignedTo
+        ? parseInt(dateFilters.assignedTo)
+        : undefined,
+      fromDate: dateFilters?.fromDate || undefined,
+      toDate: dateFilters?.toDate || undefined,
       sortBy: sortConfig?.key,
       sortOrder: sortConfig?.direction,
       showArchived: type === "archive" ? "true" : undefined,
@@ -92,6 +103,14 @@ export default function TasksTable({
   const [deleteTask] = useDeleteTaskMutation?.() || [];
   const [updateTask] = useUpdateTaskMutation?.() || [];
   const [deleteTaskAlert] = useDeleteTaskAlertMutation?.() || [];
+
+  // Check if task is overdue
+  const isTaskOverdue = (task: any) => {
+    return (
+      task.end_date &&
+      new Date(task.end_date) < new Date(new Date().setHours(0, 0, 0, 0))
+    );
+  };
 
   // Handle sorting
   const handleSort = (key: string, direction: "asc" | "desc") => {
@@ -105,7 +124,11 @@ export default function TasksTable({
       key: "serial",
       header: "S/L",
       cell: (item: any, index: number) => (
-        <span className="font-medium text-[#747382]">
+        <span
+          className={`font-medium ${
+            isTaskOverdue(item) ? "text-red-600" : "text-[#747382]"
+          }`}
+        >
           {(currentPage - 1) * pageSize + index}
         </span>
       ),
@@ -117,7 +140,9 @@ export default function TasksTable({
       sortable: true,
       cell: (item: any) => (
         <TableSingleItem
-          className="inline-block !min-w-28"
+          className={`inline-block !min-w-28 ${
+            isTaskOverdue(item) ? "!text-red-600" : ""
+          }`}
           value={item.title}
           onClick={() => handleView(item)}
         />
@@ -130,7 +155,9 @@ export default function TasksTable({
         <TableSingleItem
           value={item.description || "-"}
           onClick={() => {}}
-          className="!line-clamp-2 inline-block !max-w-64"
+          className={`!line-clamp-2 inline-block !max-w-64 ${
+            isTaskOverdue(item) ? "!text-red-600" : ""
+          }`}
         />
       ),
     },
@@ -142,7 +169,13 @@ export default function TasksTable({
         const statusLabel =
           item.status?.charAt(0).toUpperCase() +
           item.status?.slice(1).replace(/_/g, " ");
-        return <TableStatus statusName={statusLabel || "-"} />;
+        return (
+          <TableStatus
+            statusName={statusLabel || "-"}
+            textColor={isTaskOverdue(item) ? "#dc2626" : undefined}
+            className={isTaskOverdue(item) ? "!bg-red-100" : ""}
+          />
+        );
       },
       width: 120,
     },
@@ -158,6 +191,8 @@ export default function TasksTable({
               : "-"
           }
           className="min-w-max"
+          TitleClassName={isTaskOverdue(item) ? "!text-red-600" : ""}
+          subtitleClassName={isTaskOverdue(item) ? "!text-red-600" : ""}
           subtitle={item.assignee?.username || ""}
         />
       ),
@@ -174,6 +209,8 @@ export default function TasksTable({
               : "-"
           }
           className="min-w-max"
+          TitleClassName={isTaskOverdue(item) ? "!text-red-600" : ""}
+          subtitleClassName={isTaskOverdue(item) ? "!text-red-600" : ""}
           subtitle={item.reporter?.username || ""}
         />
       ),
@@ -186,7 +223,13 @@ export default function TasksTable({
         const startDate = item.start_date
           ? formatDate.getDate(item.start_date)
           : "-";
-        return <span className="text-sm">{startDate}</span>;
+        return (
+          <span
+            className={`text-sm ${isTaskOverdue(item) ? "text-red-600" : ""}`}
+          >
+            {startDate}
+          </span>
+        );
       },
       width: 120,
     },
@@ -196,15 +239,12 @@ export default function TasksTable({
       sortable: true,
       cell: (item: any) => {
         const endDate = item.end_date ? formatDate.getDate(item.end_date) : "-";
-        const isOverdue =
-          item.end_date &&
-          new Date(item.end_date) < new Date(new Date().setHours(0, 0, 0, 0));
         return (
           <span
-            className={`text-sm ${
-              isOverdue ? "text-red-600 font-semibold" : ""
+            className={`text-sm font-semibold ${
+              isTaskOverdue(item) ? "text-red-600" : ""
             }`}
-            title={isOverdue ? "Overdue" : ""}
+            title={isTaskOverdue(item) ? "Overdue" : ""}
           >
             {endDate}
           </span>
@@ -232,7 +272,7 @@ export default function TasksTable({
               alertCount > 0
                 ? "bg-primary/10 border-primary/20 text-primary hover:bg-primary/15"
                 : "bg-gray-100 border-gray-200 text-gray-400 hover:bg-gray-200"
-            }`}
+            } ${isTaskOverdue(item) ? "!text-red-600" : ""}`}
           >
             {alertCount > 0 && (
               <span className="text-xs font-semibold">{alertCount}</span>
@@ -353,7 +393,7 @@ export default function TasksTable({
       const updatedAlerts = [...selectedAlerts, { alert_date: alertDate }];
 
       const taskToUpdate = data?.data?.find(
-        (t: any) => t.id === selectedTaskId
+        (t: any) => t.id === selectedTaskId,
       );
       if (!taskToUpdate) {
         toast.error("Task not found");
@@ -397,7 +437,7 @@ export default function TasksTable({
     setIsAddingAlert(true);
     try {
       const taskToUpdate = data?.data?.find(
-        (t: any) => t.id === selectedTaskId
+        (t: any) => t.id === selectedTaskId,
       );
       if (!taskToUpdate) {
         toast.error("Task not found");
