@@ -39,6 +39,7 @@ export default function ImportExport({
 
   // Handle export button click
   const handleExport = async () => {
+    if (isExporting || isImporting) return; // Prevent multiple clicks
     try {
       await exportData(module, exportFormat, filters);
       onExportSuccess?.();

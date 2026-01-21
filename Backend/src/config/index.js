@@ -17,4 +17,10 @@ export default {
   super_admin_username: process.env.SUPER_ADMIN_USERNAME,
   super_admin_email: process.env.SUPER_ADMIN_EMAIL,
   super_admin_password: process.env.SUPER_ADMIN_PASSWORD,
+  // Chromium path for PDF generation
+  // On Windows, leave undefined to let Puppeteer auto-detect
+  // On Linux, default to /usr/bin/chromium-browser if not specified
+  chromium_path:
+    process.env.CHROMIUM_PATH ||
+    (process.platform === "linux" ? "/usr/bin/chromium-browser" : undefined),
 };
