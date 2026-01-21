@@ -14,6 +14,9 @@ import {
   taskHoldTemplate,
   taskArchiveTemplate,
   taskCommentTemplate,
+  taskSubmittedForReviewTemplate,
+  taskApprovedTemplate,
+  taskInProgressTemplate,
 } from "../../templates/emailTemplates.js";
 
 const prisma = new PrismaClient();
@@ -1126,7 +1129,8 @@ async function updateTask(req, res, next) {
       Object.keys(changes).length > 0 &&
       task.assignee &&
       task.assignee.email &&
-      req.user?.id !== task.assigned_to
+      req.user?.id !== task.assigned_to &&
+      !(isStatusCompletedUpdate && !isAssigneeTryingToUpdateThatHeDidntCreate)
     ) {
       try {
         const assigneeName =
@@ -1295,46 +1299,11 @@ async function updateTask(req, res, next) {
           `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
           task.reporter.username;
 
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-            <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #333; margin-bottom: 20px;">Task Submitted for Review</h2>
-              
-              <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
-                Hello <strong>${reporterName}</strong>,
-              </p>
-              
-              <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
-                <strong>${assigneeName}</strong> has submitted the task you are supervising. Please review it and approve or request changes.
-              </p>
-              
-              <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #FF9800; margin-bottom: 30px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px 0; font-weight: bold; color: #333; width: 120px;">Task Title:</td>
-                    <td style="padding: 12px 0; color: #666;">${task.title}</td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Submitted By:</td>
-                    <td style="padding: 12px 0; color: #666;"><strong>${assigneeName}</strong></td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Status:</td>
-                    <td style="padding: 12px 0; color: #FF9800; font-weight: bold;">Submitted</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Submission Time:</td>
-                    <td style="padding: 12px 0; color: #666;">${new Date().toLocaleString()}</td>
-                  </tr>
-                </table>
-              </div>
-              
-              <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                Please log in to the system to review and approve this task.
-              </p>
-            </div>
-          </div>
-        `;
+        const emailHtml = taskSubmittedForReviewTemplate(
+          reporterName,
+          assigneeName,
+          task,
+        );
 
         await emailService.sendEmail({
           to: task.reporter.email,
@@ -1386,46 +1355,11 @@ async function updateTask(req, res, next) {
           `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
           task.reporter.username;
 
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-            <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #333; margin-bottom: 20px;">Task Approved!</h2>
-              
-              <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
-                Hello <strong>${assigneeName}</strong>,
-              </p>
-              
-              <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
-                <strong>${reporterName}</strong> has approved your submitted task. Great work!
-              </p>
-              
-              <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #4CAF50; margin-bottom: 30px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px 0; font-weight: bold; color: #333; width: 120px;">Task Title:</td>
-                    <td style="padding: 12px 0; color: #666;">${task.title}</td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Approved By:</td>
-                    <td style="padding: 12px 0; color: #666;"><strong>${reporterName}</strong></td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Status:</td>
-                    <td style="padding: 12px 0; color: #4CAF50; font-weight: bold;">Completed</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Approval Time:</td>
-                    <td style="padding: 12px 0; color: #666;">${new Date().toLocaleString()}</td>
-                  </tr>
-                </table>
-              </div>
-              
-              <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                Thank you for completing this task!
-              </p>
-            </div>
-          </div>
-        `;
+        const emailHtml = taskApprovedTemplate(
+          assigneeName,
+          reporterName,
+          task,
+        );
 
         await emailService.sendEmail({
           to: task.assignee.email,
@@ -1524,46 +1458,11 @@ async function updateTask(req, res, next) {
           `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
           task.reporter.username;
 
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-            <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #333; margin-bottom: 20px;">Task In Progress</h2>
-              
-              <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
-                Hello <strong>${reporterName}</strong>,
-              </p>
-              
-              <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
-                <strong>${assigneeName}</strong> has started working on the task you assigned. They have acknowledged and are now actively working on it.
-              </p>
-              
-              <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #2196F3; margin-bottom: 30px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px 0; font-weight: bold; color: #333; width: 120px;">Task Title:</td>
-                    <td style="padding: 12px 0; color: #666;">${task.title}</td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Started By:</td>
-                    <td style="padding: 12px 0; color: #666;"><strong>${assigneeName}</strong></td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Status:</td>
-                    <td style="padding: 12px 0; color: #2196F3; font-weight: bold;">In Progress</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Time:</td>
-                    <td style="padding: 12px 0; color: #666;">${new Date().toLocaleString()}</td>
-                  </tr>
-                </table>
-              </div>
-              
-              <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                You will be notified when the task is submitted for review.
-              </p>
-            </div>
-          </div>
-        `;
+        const emailHtml = taskInProgressTemplate(
+          reporterName,
+          assigneeName,
+          task,
+        );
 
         await emailService.sendEmail({
           to: task.reporter.email,
@@ -1599,107 +1498,7 @@ async function updateTask(req, res, next) {
       }
     }
 
-    // 5. Send notification to reporter when assignee updates status
-    if (
-      isTryingToUpdateStatus &&
-      isAssigneeTryingToUpdateThatHeDidntCreate &&
-      task.reporter &&
-      task.reporter.email &&
-      changes.status &&
-      changes.status.new !== "completed" &&
-      changes.status.new !== "on_hold"
-    ) {
-      try {
-        const assigneeName =
-          `${task.assignee?.firstName} ${task.assignee?.lastName}`.trim() ||
-          task.assignee?.username ||
-          "Someone";
-        const reporterName =
-          `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
-          task.reporter.username;
-
-        const statusText = changes.status.new
-          .replace(/_/g, " ")
-          .replace(/\b\w/g, (l) => l.toUpperCase());
-
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-            <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #333; margin-bottom: 20px;">Task Status Updated</h2>
-              
-              <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
-                Hello <strong>${reporterName}</strong>,
-              </p>
-              
-              <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
-                <strong>${assigneeName}</strong> has updated the status of a task you are supervising. Here are the details:
-              </p>
-              
-              <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #2196F3; margin-bottom: 30px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px 0; font-weight: bold; color: #333; width: 120px;">Task Title:</td>
-                    <td style="padding: 12px 0; color: #666;">${task.title}</td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Updated By:</td>
-                    <td style="padding: 12px 0; color: #666;"><strong>${assigneeName}</strong></td>
-                  </tr>
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 12px 0; font-weight: bold; color: #333;">New Status:</td>
-                    <td style="padding: 12px 0; color: #2196F3; font-weight: bold;">${statusText}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px 0; font-weight: bold; color: #333;">Update Time:</td>
-                    <td style="padding: 12px 0; color: #666;">${new Date().toLocaleString()}</td>
-                  </tr>
-                </table>
-              </div>
-              
-              <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                Please log in to the system to view more details about this task.
-              </p>
-            </div>
-          </div>
-        `;
-
-        await emailService.sendEmail({
-          to: task.reporter.email,
-          subject: `Task Status Updated: ${task.title}`,
-          html: emailHtml,
-        });
-      } catch (emailError) {
-        console.error(
-          "Failed to send status update email to reporter:",
-          emailError,
-        );
-      }
-
-      // Send push notification to reporter
-      try {
-        const statusText = changes.status.new
-          .replace(/_/g, " ")
-          .replace(/\b\w/g, (l) => l.toUpperCase());
-
-        await PushNotificationService.sendToUser(task.reporter_id, {
-          title: "Task Status Updated",
-          body: `"${task.title}" status changed to: ${statusText}`,
-          icon: "/icons/notification-icon.png",
-          badge: "/icons/notification-badge.png",
-          data: {
-            type: "task_status_updated",
-            taskId: task.id,
-          },
-        });
-      } catch (pushError) {
-        console.error(
-          "Failed to send status update push notification to reporter:",
-          pushError,
-        );
-      }
-    }
-
-    // 6. Send notification when task is archived (to assignee)
+    // 5. Send notification when task is archived (to assignee)
     if (isArchiving && task.assignee && task.assignee.email) {
       try {
         const assigneeName =

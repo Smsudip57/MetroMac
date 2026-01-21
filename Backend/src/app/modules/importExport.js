@@ -6,7 +6,7 @@ import { ExcelExporter } from "../../helpers/ExcelExporter.js";
 import { ExcelImporter } from "../../helpers/ExcelImporter.js";
 import { ColumnMapper } from "../../helpers/ExcelColumnMapper.js";
 import { PDFExporter } from "../../helpers/PDFExporter.js";
-import { PDFTemplates } from "../templates/pdfTemplates.js";
+import { PDFTemplates } from "../../templates/pdfTemplates.js";
 import pdfService from "../services/pdfService.js";
 import Papa from "papaparse";
 

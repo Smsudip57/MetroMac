@@ -38,13 +38,13 @@ function taskAssignmentTemplate(assigneeName, reporterName, task) {
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 0; font-weight: bold; color: #333;">Start Date:</td>
               <td style="padding: 12px 0; color: #666;">${new Date(
-                task.start_date
+                task.start_date,
               ).toLocaleDateString()}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 0; font-weight: bold; color: #333;">End Date:</td>
               <td style="padding: 12px 0; color: #666;">${new Date(
-                task.end_date
+                task.end_date,
               ).toLocaleDateString()}</td>
             </tr>
             <tr>
@@ -100,13 +100,13 @@ function taskReassignmentTemplate(assigneeName, reporterName, task) {
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 0; font-weight: bold; color: #333;">Start Date:</td>
               <td style="padding: 12px 0; color: #666;">${new Date(
-                task.start_date
+                task.start_date,
               ).toLocaleDateString()}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 0; font-weight: bold; color: #333;">End Date:</td>
               <td style="padding: 12px 0; color: #666;">${new Date(
-                task.end_date
+                task.end_date,
               ).toLocaleDateString()}</td>
             </tr>
             <tr>
@@ -165,13 +165,13 @@ function taskUpdateTemplate(assigneeName, task, changesHtml) {
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 8px 0; font-weight: bold; color: #333;">Start Date:</td>
               <td style="padding: 8px 0; color: #666;">${new Date(
-                task.start_date
+                task.start_date,
               ).toLocaleDateString()}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; font-weight: bold; color: #333;">End Date:</td>
               <td style="padding: 8px 0; color: #666;">${new Date(
-                task.end_date
+                task.end_date,
               ).toLocaleDateString()}</td>
             </tr>
           </table>
@@ -227,13 +227,13 @@ function taskCompletionTemplate(assigneeName, reporterName, task) {
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 0; font-weight: bold; color: #333;">Start Date:</td>
               <td style="padding: 12px 0; color: #666;">${new Date(
-                task.start_date
+                task.start_date,
               ).toLocaleDateString()}</td>
             </tr>
             <tr>
               <td style="padding: 12px 0; font-weight: bold; color: #333;">End Date:</td>
               <td style="padding: 12px 0; color: #666;">${new Date(
-                task.end_date
+                task.end_date,
               ).toLocaleDateString()}</td>
             </tr>
           </table>
@@ -253,7 +253,7 @@ function taskCompletionTemplate(assigneeName, reporterName, task) {
 function taskAlertTemplate(recipientName, task, alert) {
   const alertDate = new Date(alert.alert_date);
   const alertTime = `${String(alertDate.getHours()).padStart(2, "0")}:${String(
-    alertDate.getMinutes()
+    alertDate.getMinutes(),
   ).padStart(2, "0")}`;
 
   return `
@@ -290,13 +290,13 @@ function taskAlertTemplate(recipientName, task, alert) {
             <tr style="border-bottom: 1px solid #f0e5a0;">
               <td style="padding: 12px 0; font-weight: bold; color: #856404;">Start Date:</td>
               <td style="padding: 12px 0; color: #856404;">${new Date(
-                task.start_date
+                task.start_date,
               ).toLocaleDateString()}</td>
             </tr>
             <tr style="border-bottom: 1px solid #f0e5a0;">
               <td style="padding: 12px 0; font-weight: bold; color: #856404;">End Date:</td>
               <td style="padding: 12px 0; color: #856404;">${new Date(
-                task.end_date
+                task.end_date,
               ).toLocaleDateString()}</td>
             </tr>
             <tr>
@@ -362,13 +362,13 @@ function taskReporterSupervisionTemplate(reporterName, assigneeName, task) {
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 0; font-weight: bold; color: #333;">Start Date:</td>
               <td style="padding: 12px 0; color: #666;">${new Date(
-                task.start_date
+                task.start_date,
               ).toLocaleDateString()}</td>
             </tr>
             <tr>
               <td style="padding: 12px 0; font-weight: bold; color: #333;">End Date:</td>
               <td style="padding: 12px 0; color: #666;">${new Date(
-                task.end_date
+                task.end_date,
               ).toLocaleDateString()}</td>
             </tr>
           </table>
@@ -468,13 +468,13 @@ function taskHoldTemplate(recipientName, task) {
             <tr style="border-bottom: 1px solid #ef5350;">
               <td style="padding: 12px 0; font-weight: bold; color: #333;">Start Date:</td>
               <td style="padding: 12px 0; color: #666;">${new Date(
-                task.start_date
+                task.start_date,
               ).toLocaleDateString()}</td>
             </tr>
             <tr>
               <td style="padding: 12px 0; font-weight: bold; color: #333;">End Date:</td>
               <td style="padding: 12px 0; color: #666;">${new Date(
-                task.end_date
+                task.end_date,
               ).toLocaleDateString()}</td>
             </tr>
           </table>
@@ -529,13 +529,13 @@ function taskArchiveTemplate(assigneeName, task) {
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 0; font-weight: bold; color: #333;">Start Date:</td>
               <td style="padding: 12px 0; color: #666;">${new Date(
-                task.start_date
+                task.start_date,
               ).toLocaleDateString()}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 0; font-weight: bold; color: #333;">End Date:</td>
               <td style="padding: 12px 0; color: #666;">${new Date(
-                task.end_date
+                task.end_date,
               ).toLocaleDateString()}</td>
             </tr>
             <tr>
@@ -649,7 +649,7 @@ function taskCommentTemplate(
   commenterName,
   task,
   comment,
-  isReporter = false
+  isReporter = false,
 ) {
   const headerMessage = isReporter
     ? `${commenterName} has commented on a task you created:`
@@ -687,6 +687,189 @@ function taskCommentTemplate(
   `;
 }
 
+/**
+ * Generate task submitted for review email HTML
+ * Sent to reporter when assignee submits a task
+ */
+function taskSubmittedForReviewTemplate(reporterName, assigneeName, task) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+      <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 style="color: #333; margin-bottom: 20px;">Task Submitted for Review</h2>
+        
+        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+          Hello <strong>${reporterName}</strong>,
+        </p>
+        
+        <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
+          <strong>${assigneeName}</strong> has submitted the task you are supervising. Please review it and approve or request changes.
+        </p>
+        
+        <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #FF9800; margin-bottom: 30px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333; width: 120px;">Task Title:</td>
+              <td style="padding: 12px 0; color: #666;">${task.title}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">Description:</td>
+              <td style="padding: 12px 0; color: #666;">${
+                task.description || "N/A"
+              }</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">Submitted By:</td>
+              <td style="padding: 12px 0; color: #666;"><strong>${assigneeName}</strong></td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">Status:</td>
+              <td style="padding: 12px 0; color: #FF9800; font-weight: bold;">Submitted</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">Start Date:</td>
+              <td style="padding: 12px 0; color: #666;">${new Date(
+                task.start_date,
+              ).toLocaleDateString()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">End Date:</td>
+              <td style="padding: 12px 0; color: #666;">${new Date(
+                task.end_date,
+              ).toLocaleDateString()}</td>
+            </tr>
+          </table>
+        </div>
+        
+        <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+          Please log in to the system to review and approve this task.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Generate task approved email HTML
+ * Sent to assignee when reporter approves/completes their submitted task
+ */
+function taskApprovedTemplate(assigneeName, reporterName, task) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+      <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 style="color: #27ae60; margin-bottom: 20px;">✓ Task Approved!</h2>
+        
+        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+          Hello <strong>${assigneeName}</strong>,
+        </p>
+        
+        <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
+          Great work! <strong>${reporterName}</strong> has approved your submitted task. 
+        </p>
+        
+        <div style="background-color: #f0f7f0; padding: 20px; border-left: 4px solid #27ae60; margin-bottom: 30px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333; width: 120px;">Task Title:</td>
+              <td style="padding: 12px 0; color: #666;">${task.title}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">Description:</td>
+              <td style="padding: 12px 0; color: #666;">${
+                task.description || "N/A"
+              }</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">Approved By:</td>
+              <td style="padding: 12px 0; color: #666;"><strong>${reporterName}</strong></td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">Status:</td>
+              <td style="padding: 12px 0; color: #27ae60; text-transform: capitalize; font-weight: bold;">✓ Completed</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">Start Date:</td>
+              <td style="padding: 12px 0; color: #666;">${new Date(
+                task.start_date,
+              ).toLocaleDateString()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">End Date:</td>
+              <td style="padding: 12px 0; color: #666;">${new Date(
+                task.end_date,
+              ).toLocaleDateString()}</td>
+            </tr>
+          </table>
+        </div>
+        
+        <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+          Thank you for completing this task!
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Generate task in progress email HTML
+ * Sent to reporter when assignee starts working on the task
+ */
+function taskInProgressTemplate(reporterName, assigneeName, task) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+      <div style="background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 style="color: #333; margin-bottom: 20px;">Task In Progress</h2>
+        
+        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+          Hello <strong>${reporterName}</strong>,
+        </p>
+        
+        <p style="color: #666; font-size: 14px; margin-bottom: 30px;">
+          <strong>${assigneeName}</strong> has started working on the task you assigned. They have acknowledged and are now actively working on it.
+        </p>
+        
+        <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #2196F3; margin-bottom: 30px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333; width: 120px;">Task Title:</td>
+              <td style="padding: 12px 0; color: #666;">${task.title}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">Description:</td>
+              <td style="padding: 12px 0; color: #666;">${
+                task.description || "N/A"
+              }</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">Started By:</td>
+              <td style="padding: 12px 0; color: #666;"><strong>${assigneeName}</strong></td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">Status:</td>
+              <td style="padding: 12px 0; color: #2196F3; font-weight: bold;">In Progress</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">Start Date:</td>
+              <td style="padding: 12px 0; color: #666;">${new Date(
+                task.start_date,
+              ).toLocaleDateString()}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; font-weight: bold; color: #333;">End Date:</td>
+              <td style="padding: 12px 0; color: #666;">${new Date(
+                task.end_date,
+              ).toLocaleDateString()}</td>
+            </tr>
+          </table>
+        </div>
+        
+        <p style="color: #666; font-size: 13px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+          You will be notified when the task is submitted for review.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
 export {
   taskAssignmentTemplate,
   taskReassignmentTemplate,
@@ -699,4 +882,7 @@ export {
   taskArchiveTemplate,
   taskOverdueTemplate,
   taskCommentTemplate,
+  taskSubmittedForReviewTemplate,
+  taskApprovedTemplate,
+  taskInProgressTemplate,
 };
