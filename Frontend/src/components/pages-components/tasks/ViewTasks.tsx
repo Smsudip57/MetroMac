@@ -26,7 +26,8 @@ import { Button } from "@/components/ui/button";
 // Status Map - Maps enum values to readable labels
 const STATUS_MAP: Record<string, string> = {
   pending: "Pending",
-  active: "Active",
+  submitted: "Submitted",
+  in_progress: "In Progress",
   on_hold: "On Hold",
   completed: "Completed",
   cancelled: "Cancelled",
@@ -272,6 +273,39 @@ export default function ViewTasks() {
                   </p>
                 </FieldWrapper>
               </div>
+
+              {/* Submission Date - Show if status is 'submitted' or 'completed' */}
+              {(task.status === "submitted" || task.status === "completed") &&
+                task.submission_date && (
+                  <FieldWrapper>
+                    <FieldLabel>Submitted Date</FieldLabel>
+                    <p
+                      className={
+                        isMobile
+                          ? "text-xs font-medium text-text rounded-xl"
+                          : "text-sm font-medium text-text rounded-xl"
+                      }
+                    >
+                      {formatDate.getDate(task.submission_date)}
+                    </p>
+                  </FieldWrapper>
+                )}
+
+              {/* Completion Date - Show only if status is 'completed' */}
+              {task.status === "completed" && task.completion_date && (
+                <FieldWrapper>
+                  <FieldLabel>Completed Date</FieldLabel>
+                  <p
+                    className={
+                      isMobile
+                        ? "text-xs font-medium text-text rounded-xl"
+                        : "text-sm font-medium text-text rounded-xl"
+                    }
+                  >
+                    {formatDate.getDate(task.completion_date)}
+                  </p>
+                </FieldWrapper>
+              )}
 
               {/* Assigned To */}
               {task.assignee && (
