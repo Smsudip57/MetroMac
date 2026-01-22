@@ -47,7 +47,7 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
   const dispatch = useAppDispatch();
 
   const isSidebarCollapsed = useAppSelector(
-    (state) => state.sidebar.isSidebarCollapsed
+    (state) => state.sidebar.isSidebarCollapsed,
   );
 
   const modules = useAppSelector((state) => state.auth.modules);
@@ -61,10 +61,10 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
   // Helper function to check if user has permission for a module
   const hasPermission = (
     moduleName: string,
-    action: string = "view"
+    action: string = "view",
   ): boolean => {
     const foundModule = modules.find(
-      (m: any) => m.name.toLowerCase() === moduleName.toLowerCase()
+      (m: any) => m.name.toLowerCase() === moduleName.toLowerCase(),
     );
     return foundModule ? foundModule.actions.includes(action) : false;
   };
@@ -120,7 +120,7 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
 
       dispatch(setUser(null));
       dispatch(logout());
-      
+
       // Clear Tasks API cache
       dispatch(taskApi.util.resetApiState());
 
@@ -207,7 +207,7 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
           : null,
       ].filter(
         (item) =>
-          item && (item.type === "accordion" || hasPermission(item.title))
+          item && (item.type === "accordion" || hasPermission(item.title)),
       ),
     },
     {
