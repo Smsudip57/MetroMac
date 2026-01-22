@@ -6,6 +6,7 @@ import { useLogoutMutation } from "@/redux/api/authApi";
 import { logout, setUser } from "@/redux/features/authSlice";
 import { useGetMeQuery } from "@/redux/api/profile/profileApi";
 import { useUnsubscribeFromPushMutation } from "@/redux/api/push/pushApi";
+import { taskApi } from "@/redux/api/tasks/taskApi";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
@@ -119,6 +120,9 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
 
       dispatch(setUser(null));
       dispatch(logout());
+      
+      // Clear Tasks API cache
+      dispatch(taskApi.util.resetApiState());
 
       // Refetch to clear the profile cache and trigger UserProvider redirect
       await refetchMe();
@@ -129,7 +133,7 @@ const Sidebar = ({ className = "" }: SidebarProps) => {
       router.push("/");
       dispatch(setUser(null));
       dispatch(logout());
-
+      dispatch(taskApi.util.resetApiState());
       // Still refetch even on error to clear cache
       await refetchMe();
     }
