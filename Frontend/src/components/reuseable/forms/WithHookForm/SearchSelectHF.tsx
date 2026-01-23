@@ -80,6 +80,9 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
 
   // Track last processed data to prevent re-processing the same data
   const lastProcessedDataRef = useRef<any>(null);
+  
+  // Track if a page request is in flight to prevent rapid page increments
+  const pageInFlightRef = useRef<number | null>(null);
 
   // For auto data fetching
   const [searchTerm, setSearchTerm] = useState("");
@@ -130,6 +133,9 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
         setOptions((prev) => [...prev, ...mapped]);
       }
       setHasMore(rtkResult.data?.pagination?.hasNext || false);
+      
+      // Clear the in-flight tracker when data arrives
+      pageInFlightRef.current = null;
     }
   }, [rtkResult?.data, page, onScrollLoadMore, mapOption, searchTerm]);
 
@@ -258,7 +264,9 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50; // 50px threshold
     if (onScrollLoadMore) {
-      if (isNearBottom && hasMore && !isLoading) {
+      // Prevent multiple rapid page increments
+      if (isNearBottom && hasMore && !isLoading && pageInFlightRef.current === null) {
+        pageInFlightRef.current = page + 1;
         setPage((prev) => prev + 1);
       }
     }
