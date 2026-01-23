@@ -109,7 +109,7 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
       setIsLoading(rtkResult.isFetching || false);
       const dataArr = rtkResult.data?.data || [];
       const mapped = mapOption ? dataArr.map(mapOption) : dataArr;
-      
+
       if (page === 1) {
         console.log("Page 1 - Replacing options with:", mapped.length, "items");
         setOptions(mapped);
@@ -117,7 +117,9 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
         // Deduplicate: only add items that don't already exist
         setOptions((prev) => {
           const existingValues = new Set(prev.map((opt) => opt.value));
-          const newItems = mapped.filter((item) => !existingValues.has(item.value));
+          const newItems = mapped.filter(
+            (item:any) => !existingValues.has(item.value),
+          );
           console.log(
             `Page ${page} - Found ${newItems.length} new items out of ${mapped.length}`,
           );
