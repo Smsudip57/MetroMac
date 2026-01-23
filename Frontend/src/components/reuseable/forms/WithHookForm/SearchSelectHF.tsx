@@ -105,7 +105,7 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
         currentOptionsCount: options.length,
         searchTerm,
       });
-      
+
       setIsLoading(rtkResult.isFetching || false);
       const dataArr = rtkResult.data?.data || [];
       const mapped = mapOption ? dataArr.map(mapOption) : dataArr;
@@ -113,19 +113,18 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
         console.log("Page 1 - Replacing options with:", mapped.length, "items");
         setOptions(mapped);
       } else {
-        console.log(`Page ${page} - Appending`, mapped.length, "items to existing", options.length, "items");
+        console.log(
+          `Page ${page} - Appending`,
+          mapped.length,
+          "items to existing",
+          options.length,
+          "items",
+        );
         setOptions((prev) => [...prev, ...mapped]);
       }
       setHasMore(rtkResult.data?.pagination?.hasNext || false);
     }
-  }, [
-    rtkResult?.data,
-    rtkResult?.isFetching,
-    page,
-    onScrollLoadMore,
-    mapOption,
-    rtkResult,
-  ]);
+  }, [rtkResult?.data, page, onScrollLoadMore, mapOption]);
 
   // Reset page/options on search term change (auto data fetching)
   useEffect(() => {
