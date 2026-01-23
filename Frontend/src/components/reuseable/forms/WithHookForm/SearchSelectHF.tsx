@@ -96,13 +96,24 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
 
   // When using auto data fetching, update options from RTK Query
   useEffect(() => {
-    if (onScrollLoadMore && rtkResult?.data) {
+    if (onScrollLoadMore && rtkResult) {
+      console.log("SearchSelectHF useEffect triggered:", {
+        page,
+        dataLength: rtkResult.data?.data?.length || 0,
+        isFetching: rtkResult.isFetching,
+        hasMore: rtkResult.data?.pagination?.hasNext,
+        currentOptionsCount: options.length,
+        searchTerm,
+      });
+      
       setIsLoading(rtkResult.isFetching || false);
       const dataArr = rtkResult.data?.data || [];
       const mapped = mapOption ? dataArr.map(mapOption) : dataArr;
       if (page === 1) {
+        console.log("Page 1 - Replacing options with:", mapped.length, "items");
         setOptions(mapped);
       } else {
+        console.log(`Page ${page} - Appending`, mapped.length, "items to existing", options.length, "items");
         setOptions((prev) => [...prev, ...mapped]);
       }
       setHasMore(rtkResult.data?.pagination?.hasNext || false);
@@ -113,13 +124,13 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
     page,
     onScrollLoadMore,
     mapOption,
+    rtkResult,
   ]);
 
   // Reset page/options on search term change (auto data fetching)
   useEffect(() => {
     if (onScrollLoadMore) {
       setPage(1);
-      setOptions([]); // Clear options when search term changes
     }
   }, [searchTerm, onScrollLoadMore]);
 
