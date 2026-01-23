@@ -78,6 +78,9 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Track last processed data to prevent re-processing the same data
+  const lastProcessedDataRef = useRef<any>(null);
+
   // For auto data fetching
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
@@ -97,6 +100,15 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
   // When using auto data fetching, update options from RTK Query
   useEffect(() => {
     if (onScrollLoadMore && rtkResult && rtkResult.data?.data) {
+      // Early return: skip if this exact data object was already processed
+      if (lastProcessedDataRef.current === rtkResult.data?.data) {
+        console.log("Skipping duplicate data processing");
+        return;
+      }
+
+      // Update the ref to track this data
+      lastProcessedDataRef.current = rtkResult.data?.data;
+
       console.log("SearchSelectHF useEffect triggered:", {
         page,
         dataLength: rtkResult.data?.data?.length || 0,
@@ -114,26 +126,19 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
         console.log("Page 1 - Replacing options with:", mapped.length, "items");
         setOptions(mapped);
       } else {
-        // Deduplicate: only add items that don't already exist
-        setOptions((prev) => {
-          const existingValues = new Set(prev.map((opt) => opt.value));
-          const newItems = mapped.filter(
-            (item:any) => !existingValues.has(item.value),
-          );
-          console.log(
-            `Page ${page} - Found ${newItems.length} new items out of ${mapped.length}`,
-          );
-          return [...prev, ...newItems];
-        });
+        console.log(`Page ${page} - Appending ${mapped.length} items`);
+        setOptions((prev) => [...prev, ...mapped]);
       }
       setHasMore(rtkResult.data?.pagination?.hasNext || false);
     }
-  }, [rtkResult?.data, page, onScrollLoadMore, mapOption]);
+  }, [rtkResult?.data, page, onScrollLoadMore, mapOption, searchTerm]);
 
   // Reset page/options on search term change (auto data fetching)
   useEffect(() => {
     if (onScrollLoadMore) {
       setPage(1);
+      // Clear last processed data when search changes to allow fresh fetch
+      lastProcessedDataRef.current = null;
     }
   }, [searchTerm, onScrollLoadMore]);
 
