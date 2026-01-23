@@ -96,7 +96,7 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
 
   // When using auto data fetching, update options from RTK Query
   useEffect(() => {
-    if (onScrollLoadMore && rtkResult) {
+    if (onScrollLoadMore && rtkResult && rtkResult.data?.data) {
       console.log("SearchSelectHF useEffect triggered:", {
         page,
         dataLength: rtkResult.data?.data?.length || 0,
@@ -109,18 +109,20 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
       setIsLoading(rtkResult.isFetching || false);
       const dataArr = rtkResult.data?.data || [];
       const mapped = mapOption ? dataArr.map(mapOption) : dataArr;
+      
       if (page === 1) {
         console.log("Page 1 - Replacing options with:", mapped.length, "items");
         setOptions(mapped);
       } else {
-        console.log(
-          `Page ${page} - Appending`,
-          mapped.length,
-          "items to existing",
-          options.length,
-          "items",
-        );
-        setOptions((prev) => [...prev, ...mapped]);
+        // Deduplicate: only add items that don't already exist
+        setOptions((prev) => {
+          const existingValues = new Set(prev.map((opt) => opt.value));
+          const newItems = mapped.filter((item) => !existingValues.has(item.value));
+          console.log(
+            `Page ${page} - Found ${newItems.length} new items out of ${mapped.length}`,
+          );
+          return [...prev, ...newItems];
+        });
       }
       setHasMore(rtkResult.data?.pagination?.hasNext || false);
     }
