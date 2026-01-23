@@ -96,7 +96,7 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
 
   // When using auto data fetching, update options from RTK Query
   useEffect(() => {
-    if (onScrollLoadMore && rtkResult) {
+    if (onScrollLoadMore && rtkResult?.data) {
       setIsLoading(rtkResult.isFetching || false);
       const dataArr = rtkResult.data?.data || [];
       const mapped = mapOption ? dataArr.map(mapOption) : dataArr;
@@ -113,13 +113,13 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
     page,
     onScrollLoadMore,
     mapOption,
-    rtkResult,
   ]);
 
   // Reset page/options on search term change (auto data fetching)
   useEffect(() => {
     if (onScrollLoadMore) {
       setPage(1);
+      setOptions([]); // Clear options when search term changes
     }
   }, [searchTerm, onScrollLoadMore]);
 
@@ -272,7 +272,7 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
                     ? "border-warning focus:ring-warning"
                     : "border-border",
                   disabled && "opacity-50 cursor-not-allowed",
-                  triggerClassName
+                  triggerClassName,
                 )}
               >
                 {/* Show chips for multiselect, else image+label */}
@@ -328,7 +328,7 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
                 <FaAngleDown
                   className={cn(
                     "text-text flex-shrink-0",
-                    open && "transform rotate-180"
+                    open && "transform rotate-180",
                   )}
                   size={15}
                   onClick={() => !disabled && setOpen(!open)}
@@ -343,7 +343,7 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
                     ? "border-warning focus:ring-warning"
                     : "border-border",
                   disabled && "opacity-50 cursor-not-allowed",
-                  triggerClassName
+                  triggerClassName,
                 )}
                 onClick={() => !disabled && setOpen(!open)}
               >
@@ -406,7 +406,7 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
                 ref={dropdownRef}
                 className={cn(
                   contentContainerStyles,
-                  "absolute w-full mt-1 min-w-[200px] max-h-80 overflow-auto"
+                  "absolute w-full mt-1 min-w-[200px] max-h-80 overflow-auto",
                 )}
                 onScroll={handleScroll}
               >
@@ -418,7 +418,7 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
                         const isSelected = multiselect
                           ? Array.isArray(field.value) &&
                             field.value.some(
-                              (v: OptionType) => v.value === option.value
+                              (v: OptionType) => v.value === option.value,
                             )
                           : field.value?.value === option.value;
                         return (
@@ -426,7 +426,7 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
                             key={option.value}
                             className={cn(
                               "px-2 py-1.5 md:text-sm text-xs cursor-pointer text-text flex items-center !rounded-lg hover:bg-primary/10",
-                              isSelected && "bg-primary/10"
+                              isSelected && "bg-primary/10",
                             )}
                             style={{ transition: "background 0.15s" }}
                             onClick={() => {
@@ -437,14 +437,14 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
                                   Array.isArray(field.value)
                                     ? field.value.some(
                                         (v: OptionType) =>
-                                          v.value === option.value
+                                          v.value === option.value,
                                       )
                                       ? field.value.filter(
                                           (v: OptionType) =>
-                                            v.value !== option.value
+                                            v.value !== option.value,
                                         )
                                       : [...field.value, option]
-                                    : [option]
+                                    : [option],
                                 );
                             }}
                             onMouseDown={(e) => e.preventDefault()}
