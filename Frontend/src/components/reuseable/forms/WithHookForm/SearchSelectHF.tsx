@@ -80,7 +80,7 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
 
   // Track last processed data to prevent re-processing the same data
   const lastProcessedDataRef = useRef<any>(null);
-  
+
   // Track if a page request is in flight to prevent rapid page increments
   const pageInFlightRef = useRef<number | null>(null);
 
@@ -105,35 +105,23 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
     if (onScrollLoadMore && rtkResult && rtkResult.data?.data) {
       // Early return: skip if this exact data object was already processed
       if (lastProcessedDataRef.current === rtkResult.data?.data) {
-        console.log("Skipping duplicate data processing");
         return;
       }
 
       // Update the ref to track this data
       lastProcessedDataRef.current = rtkResult.data?.data;
 
-      console.log("SearchSelectHF useEffect triggered:", {
-        page,
-        dataLength: rtkResult.data?.data?.length || 0,
-        isFetching: rtkResult.isFetching,
-        hasMore: rtkResult.data?.pagination?.hasNext,
-        currentOptionsCount: options.length,
-        searchTerm,
-      });
-
       setIsLoading(rtkResult.isFetching || false);
       const dataArr = rtkResult.data?.data || [];
       const mapped = mapOption ? dataArr.map(mapOption) : dataArr;
 
       if (page === 1) {
-        console.log("Page 1 - Replacing options with:", mapped.length, "items");
         setOptions(mapped);
       } else {
-        console.log(`Page ${page} - Appending ${mapped.length} items`);
         setOptions((prev) => [...prev, ...mapped]);
       }
       setHasMore(rtkResult.data?.pagination?.hasNext || false);
-      
+
       // Clear the in-flight tracker when data arrives
       pageInFlightRef.current = null;
     }
@@ -265,7 +253,12 @@ const SearchSelectHF: React.FC<SearchSelectHFProps> = ({
     const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50; // 50px threshold
     if (onScrollLoadMore) {
       // Prevent multiple rapid page increments
-      if (isNearBottom && hasMore && !isLoading && pageInFlightRef.current === null) {
+      if (
+        isNearBottom &&
+        hasMore &&
+        !isLoading &&
+        pageInFlightRef.current === null
+      ) {
         pageInFlightRef.current = page + 1;
         setPage((prev) => prev + 1);
       }

@@ -254,6 +254,24 @@ export default function TasksTable({
       width: 120,
     },
     {
+      key: "created_at",
+      header: "Created Date",
+      sortable: true,
+      cell: (item: any) => {
+        const createdDate = item.created_at
+          ? formatDate.getDate(item.created_at)
+          : "-";
+        return (
+          <span
+            className={`text-sm ${isTaskOverdue(item) ? "text-red-600" : ""}`}
+          >
+            {createdDate}
+          </span>
+        );
+      },
+      width: 120,
+    },
+    {
       key: "taskAlerts",
       header: "Alerts",
       cell: (item: any) => {
