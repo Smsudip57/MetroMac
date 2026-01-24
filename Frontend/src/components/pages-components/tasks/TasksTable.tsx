@@ -269,7 +269,7 @@ export default function TasksTable({
           </span>
         );
       },
-      width: 120,
+      width: 140,
     },
     {
       key: "taskAlerts",
