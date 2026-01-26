@@ -304,6 +304,11 @@ async function fetchDataByModule(module, filters) {
 function buildWhereClause(module, filters) {
   const where = {};
 
+  console.log(
+    `[WHERE] Building where clause for module: ${module}, filters:`,
+    filters,
+  );
+
   // Common search filter
   if (filters.search) {
     where.OR = [{ notes: { contains: filters.search, mode: "insensitive" } }];
@@ -447,6 +452,7 @@ function buildWhereClause(module, filters) {
     }
   }
 
+  console.log(`[WHERE] Final where clause:`, JSON.stringify(where, null, 2));
   return where;
 }
 
