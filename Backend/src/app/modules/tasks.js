@@ -538,7 +538,7 @@ async function getTasks(req, res, next) {
           // No OR or AND, just add date conditions as AND
           // But preserve existing simple filters (status, assigned_to, reporter_id)
           currentConditions.push(...andConditions);
-          
+
           if (where.status !== undefined) {
             currentConditions.push({ status: where.status });
           }
@@ -551,7 +551,7 @@ async function getTasks(req, res, next) {
           if (where.is_archived !== undefined) {
             currentConditions.push({ is_archived: where.is_archived });
           }
-          
+
           where = {
             AND: currentConditions,
           };

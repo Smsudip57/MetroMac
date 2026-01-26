@@ -421,9 +421,6 @@ function buildWhereClause(module, filters) {
           if (where.reporter_id !== undefined) {
             currentConditions.push({ reporter_id: where.reporter_id });
           }
-          if (where.is_archived !== undefined) {
-            currentConditions.push({ is_archived: where.is_archived });
-          }
 
           where = {
             AND: currentConditions,
@@ -432,10 +429,18 @@ function buildWhereClause(module, filters) {
       }
     }
 
-    // Archive filter (set default if not already in AND)
-    if (!where.AND) {
-      if (filters.showArchived === "true") {
+    // Archive filter
+    if (filters.showArchived === "true") {
+      if (where.AND) {
+        // If AND structure exists, add is_archived to the conditions
+        where.AND.push({ is_archived: true });
+      } else {
         where.is_archived = true;
+      }
+    } else {
+      if (where.AND) {
+        // If AND structure exists, add is_archived to the conditions
+        where.AND.push({ is_archived: false });
       } else {
         where.is_archived = false;
       }
