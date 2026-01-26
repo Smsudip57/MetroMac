@@ -536,8 +536,24 @@ async function getTasks(req, res, next) {
           };
         } else {
           // No OR or AND, just add date conditions as AND
+          // But preserve existing simple filters (status, assigned_to, reporter_id)
+          currentConditions.push(...andConditions);
+          
+          if (where.status !== undefined) {
+            currentConditions.push({ status: where.status });
+          }
+          if (where.assigned_to !== undefined) {
+            currentConditions.push({ assigned_to: where.assigned_to });
+          }
+          if (where.reporter_id !== undefined) {
+            currentConditions.push({ reporter_id: where.reporter_id });
+          }
+          if (where.is_archived !== undefined) {
+            currentConditions.push({ is_archived: where.is_archived });
+          }
+          
           where = {
-            AND: andConditions,
+            AND: currentConditions,
           };
         }
       }

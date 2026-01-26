@@ -382,23 +382,63 @@ function buildWhereClause(module, filters) {
       }
 
       if (andConditions.length > 0) {
+        const currentConditions = [];
+
         if (where.OR) {
+          // If OR exists (search), wrap both OR and new conditions in AND
+          currentConditions.push({ OR: where.OR });
+
+          // Add simple filters to AND
+          if (where.status !== undefined) {
+            currentConditions.push({ status: where.status });
+            delete where.status;
+          }
+          if (where.assigned_to !== undefined) {
+            currentConditions.push({ assigned_to: where.assigned_to });
+            delete where.assigned_to;
+          }
+          if (where.reporter_id !== undefined) {
+            currentConditions.push({ reporter_id: where.reporter_id });
+            delete where.reporter_id;
+          }
+
+          // Add date conditions
+          currentConditions.push(...andConditions);
+
           where = {
-            AND: [{ OR: where.OR }, ...andConditions],
+            AND: currentConditions,
           };
         } else {
+          // No OR, but preserve simple filters (status, assigned_to, reporter_id)
+          currentConditions.push(...andConditions);
+
+          if (where.status !== undefined) {
+            currentConditions.push({ status: where.status });
+          }
+          if (where.assigned_to !== undefined) {
+            currentConditions.push({ assigned_to: where.assigned_to });
+          }
+          if (where.reporter_id !== undefined) {
+            currentConditions.push({ reporter_id: where.reporter_id });
+          }
+          if (where.is_archived !== undefined) {
+            currentConditions.push({ is_archived: where.is_archived });
+          }
+
           where = {
-            AND: andConditions,
+            AND: currentConditions,
           };
         }
       }
     }
 
-    // Archive filter
-    if (filters.showArchived === "true") {
-      where.is_archived = true;
-    } else {
-      where.is_archived = false;
+    // Archive filter (set default if not already in AND)
+    if (!where.AND) {
+      if (filters.showArchived === "true") {
+        where.is_archived = true;
+      } else {
+        where.is_archived = false;
+      }
     }
   }
 
