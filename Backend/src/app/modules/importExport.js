@@ -302,158 +302,168 @@ async function fetchDataByModule(module, filters) {
 }
 
 function buildWhereClause(module, filters) {
-  const where = {};
+  try {
+    const where = {};
 
-  console.log(
-    `[WHERE] Building where clause for module: ${module}, filters:`,
-    filters,
-  );
+    console.log(
+      `[WHERE] Building where clause for module: ${module}, filters:`,
+      filters,
+    );
 
-  // Common search filter
-  if (filters.search) {
-    where.OR = [{ notes: { contains: filters.search, mode: "insensitive" } }];
+    // Common search filter
+    if (filters.search) {
+      where.OR = [{ notes: { contains: filters.search, mode: "insensitive" } }];
 
+      if (module === "task") {
+        where.OR = [
+          { title: { contains: filters.search, mode: "insensitive" } },
+          { description: { contains: filters.search, mode: "insensitive" } },
+        ];
+      }
+    }
+
+    // Task-specific filters
     if (module === "task") {
-      where.OR = [
-        { title: { contains: filters.search, mode: "insensitive" } },
-        { description: { contains: filters.search, mode: "insensitive" } },
-      ];
-    }
-  }
-
-  // Task-specific filters
-  if (module === "task") {
-    // Status filter
-    if (
-      filters.status &&
-      ["pending", "active", "on_hold", "completed", "cancelled"].includes(
-        filters.status,
-      )
-    ) {
-      where.status = filters.status;
-    }
-
-    // Assigned to filter
-    if (filters.assigned_to) {
-      where.assigned_to = parseInt(filters.assigned_to);
-    }
-
-    // Reporter filter
-    if (filters.reporter_id) {
-      where.reporter_id = parseInt(filters.reporter_id);
-    }
-
-    // Date range filter (fromDate and toDate)
-    // Tasks must have: start_date >= fromDate AND end_date <= toDate
-    if (filters.fromDate || filters.toDate) {
-      const andConditions = [];
-
-      if (filters.fromDate) {
-        // Parse date string (format: YYYY-MM-DD) and create UTC date at start of day
-        const [year, month, day] = filters.fromDate.split("-");
-        const fromDateObj = new Date(
-          Date.UTC(
-            parseInt(year),
-            parseInt(month) - 1,
-            parseInt(day),
-            0,
-            0,
-            0,
-            0,
-          ),
-        );
-
-        // Task start_date must be >= fromDate
-        andConditions.push({ start_date: { gte: fromDateObj } });
+      // Status filter
+      if (
+        filters.status &&
+        ["pending", "active", "on_hold", "completed", "cancelled"].includes(
+          filters.status,
+        )
+      ) {
+        where.status = filters.status;
       }
 
-      if (filters.toDate) {
-        // Parse date string (format: YYYY-MM-DD) and create UTC date at end of day
-        const [year, month, day] = filters.toDate.split("-");
-        const toDateObj = new Date(
-          Date.UTC(
-            parseInt(year),
-            parseInt(month) - 1,
-            parseInt(day),
-            23,
-            59,
-            59,
-            999,
-          ),
-        );
-
-        // Task end_date must be <= toDate
-        andConditions.push({ end_date: { lte: toDateObj } });
+      // Assigned to filter
+      if (filters.assigned_to) {
+        where.assigned_to = parseInt(filters.assigned_to);
       }
 
-      if (andConditions.length > 0) {
-        const currentConditions = [];
+      // Reporter filter
+      if (filters.reporter_id) {
+        where.reporter_id = parseInt(filters.reporter_id);
+      }
 
-        if (where.OR) {
-          // If OR exists (search), wrap both OR and new conditions in AND
-          currentConditions.push({ OR: where.OR });
+      // Date range filter (fromDate and toDate)
+      // Tasks must have: start_date >= fromDate AND end_date <= toDate
+      if (filters.fromDate || filters.toDate) {
+        const andConditions = [];
 
-          // Add simple filters to AND
-          if (where.status !== undefined) {
-            currentConditions.push({ status: where.status });
-            delete where.status;
+        if (filters.fromDate) {
+          // Parse date string (format: YYYY-MM-DD) and create UTC date at start of day
+          const [year, month, day] = filters.fromDate.split("-");
+          const fromDateObj = new Date(
+            Date.UTC(
+              parseInt(year),
+              parseInt(month) - 1,
+              parseInt(day),
+              0,
+              0,
+              0,
+              0,
+            ),
+          );
+
+          // Task start_date must be >= fromDate
+          andConditions.push({ start_date: { gte: fromDateObj } });
+        }
+
+        if (filters.toDate) {
+          // Parse date string (format: YYYY-MM-DD) and create UTC date at end of day
+          const [year, month, day] = filters.toDate.split("-");
+          const toDateObj = new Date(
+            Date.UTC(
+              parseInt(year),
+              parseInt(month) - 1,
+              parseInt(day),
+              23,
+              59,
+              59,
+              999,
+            ),
+          );
+
+          // Task end_date must be <= toDate
+          andConditions.push({ end_date: { lte: toDateObj } });
+        }
+
+        if (andConditions.length > 0) {
+          const currentConditions = [];
+
+          if (where.OR) {
+            // If OR exists (search), wrap both OR and new conditions in AND
+            currentConditions.push({ OR: where.OR });
+
+            // Add simple filters to AND
+            if (where.status !== undefined) {
+              currentConditions.push({ status: where.status });
+              delete where.status;
+            }
+            if (where.assigned_to !== undefined) {
+              currentConditions.push({ assigned_to: where.assigned_to });
+              delete where.assigned_to;
+            }
+            if (where.reporter_id !== undefined) {
+              currentConditions.push({ reporter_id: where.reporter_id });
+              delete where.reporter_id;
+            }
+
+            // Add date conditions
+            currentConditions.push(...andConditions);
+
+            where = {
+              AND: currentConditions,
+            };
+          } else {
+            // No OR, but preserve simple filters (status, assigned_to, reporter_id)
+            currentConditions.push(...andConditions);
+
+            if (where.status !== undefined) {
+              currentConditions.push({ status: where.status });
+            }
+            if (where.assigned_to !== undefined) {
+              currentConditions.push({ assigned_to: where.assigned_to });
+            }
+            if (where.reporter_id !== undefined) {
+              currentConditions.push({ reporter_id: where.reporter_id });
+            }
+
+            where = {
+              AND: currentConditions,
+            };
           }
-          if (where.assigned_to !== undefined) {
-            currentConditions.push({ assigned_to: where.assigned_to });
-            delete where.assigned_to;
-          }
-          if (where.reporter_id !== undefined) {
-            currentConditions.push({ reporter_id: where.reporter_id });
-            delete where.reporter_id;
-          }
+        }
+      }
 
-          // Add date conditions
-          currentConditions.push(...andConditions);
-
-          where = {
-            AND: currentConditions,
-          };
+      // Archive filter
+      if (filters.showArchived === "true") {
+        if (where.AND) {
+          // If AND structure exists, add is_archived to the conditions
+          where.AND.push({ is_archived: true });
         } else {
-          // No OR, but preserve simple filters (status, assigned_to, reporter_id)
-          currentConditions.push(...andConditions);
-
-          if (where.status !== undefined) {
-            currentConditions.push({ status: where.status });
-          }
-          if (where.assigned_to !== undefined) {
-            currentConditions.push({ assigned_to: where.assigned_to });
-          }
-          if (where.reporter_id !== undefined) {
-            currentConditions.push({ reporter_id: where.reporter_id });
-          }
-
-          where = {
-            AND: currentConditions,
-          };
+          where.is_archived = true;
+        }
+      } else {
+        if (where.AND) {
+          // If AND structure exists, add is_archived to the conditions
+          where.AND.push({ is_archived: false });
+        } else {
+          where.is_archived = false;
         }
       }
     }
 
-    // Archive filter
-    if (filters.showArchived === "true") {
-      if (where.AND) {
-        // If AND structure exists, add is_archived to the conditions
-        where.AND.push({ is_archived: true });
-      } else {
-        where.is_archived = true;
-      }
-    } else {
-      if (where.AND) {
-        // If AND structure exists, add is_archived to the conditions
-        where.AND.push({ is_archived: false });
-      } else {
-        where.is_archived = false;
-      }
-    }
+    console.log(
+      `[WHERE] Final where clause keys:`,
+      Object.keys(where),
+      "has AND:",
+      !!where.AND,
+    );
+    return where;
+  } catch (error) {
+    console.error(`[WHERE] Error building where clause:`, error.message);
+    throw error;
   }
-
-  console.log(`[WHERE] Final where clause keys:`, Object.keys(where), "has AND:", !!where.AND);
-  return where;
 }
 
 async function exportToCSV(data, module) {
