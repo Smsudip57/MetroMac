@@ -303,7 +303,7 @@ async function fetchDataByModule(module, filters) {
 
 function buildWhereClause(module, filters) {
   try {
-    const where = {};
+    let where = {};
 
     console.log(
       `[WHERE] Building where clause for module: ${module}, filters:`,
