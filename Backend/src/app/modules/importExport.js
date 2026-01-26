@@ -452,7 +452,7 @@ function buildWhereClause(module, filters) {
     }
   }
 
-  console.log(`[WHERE] Final where clause:`, JSON.stringify(where, null, 2));
+  console.log(`[WHERE] Final where clause keys:`, Object.keys(where), "has AND:", !!where.AND);
   return where;
 }
 
