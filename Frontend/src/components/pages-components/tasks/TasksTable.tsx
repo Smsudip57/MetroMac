@@ -35,6 +35,7 @@ type TasksTableProps = {
     fromDate?: string;
     toDate?: string;
     assignedTo?: string;
+    reporterId?: string;
   };
 };
 
@@ -92,6 +93,9 @@ export default function TasksTable({
       status: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
       assigned_to: dateFilters?.assignedTo
         ? parseInt(dateFilters.assignedTo)
+        : undefined,
+      reporter_id: dateFilters?.reporterId
+        ? parseInt(dateFilters.reporterId)
         : undefined,
       fromDate: dateFilters?.fromDate || undefined,
       toDate: dateFilters?.toDate || undefined,

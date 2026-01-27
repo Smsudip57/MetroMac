@@ -15,6 +15,7 @@ type FilterTaskModalProps = {
     fromDate?: string;
     toDate?: string;
     assignedTo?: string;
+    reporterId?: string;
   }) => void;
   filterButtonRef?: React.RefObject<HTMLButtonElement>;
 };
@@ -30,6 +31,7 @@ export default function FilterTaskModal({
       fromDate: "",
       toDate: "",
       assignedTo: null,
+      reporterId: null,
     },
   });
 
@@ -37,13 +39,14 @@ export default function FilterTaskModal({
     let fromDate = methods.getValues("fromDate");
     let toDate = methods.getValues("toDate");
     const assignedTo = methods.getValues("assignedTo") as any;
+    const reporterId = methods.getValues("reporterId") as any;
 
     // Convert local dates to UTC ISO strings for backend
     if (fromDate) {
       const localDate = new Date(fromDate);
       // Create UTC date string
       fromDate = new Date(
-        localDate.getTime() - localDate.getTimezoneOffset() * 60000
+        localDate.getTime() - localDate.getTimezoneOffset() * 60000,
       )
         .toISOString()
         .split("T")[0];
@@ -53,7 +56,7 @@ export default function FilterTaskModal({
       const localDate = new Date(toDate);
       // Create UTC date string
       toDate = new Date(
-        localDate.getTime() - localDate.getTimezoneOffset() * 60000
+        localDate.getTime() - localDate.getTimezoneOffset() * 60000,
       )
         .toISOString()
         .split("T")[0];
@@ -74,6 +77,7 @@ export default function FilterTaskModal({
       fromDate: fromDate || undefined,
       toDate: toDate || undefined,
       assignedTo: assignedTo?.value || undefined,
+      reporterId: reporterId?.value || undefined,
     });
 
     setIsOpen(false);
@@ -85,6 +89,7 @@ export default function FilterTaskModal({
       fromDate: "",
       toDate: "",
       assignedTo: null,
+      reporterId: null,
     });
     onApplyFilters({});
     setIsOpen(false);
@@ -144,6 +149,21 @@ export default function FilterTaskModal({
                       label="Assigned To"
                       searchable
                       placeholder="Search and select assignee"
+                      onScrollLoadMore={true}
+                      rtkQueryHook={useGetUsersQuery}
+                      mapOption={(user: any) => ({
+                        value: user.id.toString(),
+                        label: `${user.firstName} ${user.lastName}`,
+                      })}
+                      defaultParams={{ limit: 100 }}
+                    />
+                  </div>
+                  <div>
+                    <SearchSelectHF
+                      name="reporterId"
+                      label="Assigned By (Reporter)"
+                      searchable
+                      placeholder="Search and select reporter"
                       onScrollLoadMore={true}
                       rtkQueryHook={useGetUsersQuery}
                       mapOption={(user: any) => ({

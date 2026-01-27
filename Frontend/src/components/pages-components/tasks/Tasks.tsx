@@ -26,6 +26,7 @@ export default function Tasks({ type = "normal" }: TasksProps) {
     fromDate: "",
     toDate: "",
     assignedTo: "",
+    reporterId: "",
   });
   const filterButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -50,11 +51,13 @@ export default function Tasks({ type = "normal" }: TasksProps) {
     fromDate?: string;
     toDate?: string;
     assignedTo?: string;
+    reporterId?: string;
   }) => {
     setDateFilters({
       fromDate: filters.fromDate || "",
       toDate: filters.toDate || "",
       assignedTo: filters.assignedTo || "",
+      reporterId: filters.reporterId || "",
     });
   };
 
@@ -78,6 +81,9 @@ export default function Tasks({ type = "normal" }: TasksProps) {
     }
     if (dateFilters.assignedTo) {
       formattedFilters.assigned_to = dateFilters.assignedTo;
+    }
+    if (dateFilters.reporterId) {
+      formattedFilters.reporter_id = dateFilters.reporterId;
     }
 
     formattedFilters.showArchived = type === "archive" ? "true" : "false";

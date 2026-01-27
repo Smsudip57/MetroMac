@@ -455,8 +455,8 @@ async function getTasks(req, res, next) {
       where.assigned_to = parseInt(assigned_to);
     }
 
-    // Reporter filter (skip for managers to prevent bypass)
-    if (reporter_id && !isManager) {
+    // Reporter filter - allows filtering by task reporter/supervisor
+    if (reporter_id) {
       where.reporter_id = parseInt(reporter_id);
     }
 
