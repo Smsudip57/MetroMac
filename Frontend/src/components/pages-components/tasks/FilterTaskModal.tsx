@@ -161,7 +161,7 @@ export default function FilterTaskModal({
                   <div>
                     <SearchSelectHF
                       name="reporterId"
-                      label="Assigned By (Reporter)"
+                      label="Assigned By"
                       searchable
                       placeholder="Search and select reporter"
                       onScrollLoadMore={true}
