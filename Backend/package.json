@@ -10,6 +10,7 @@
     "lint": "eslint . --ext .js --ignore-path .eslintignore",
     "lint:fix": "eslint . --ext .js --fix --ignore-path .eslintignore",
     "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|json)\"",
+    "dbrest": "node src/database/migrateWithDataPreservation.js",
     "postinstall": "npx prisma generate --schema=src/prisma/schema.prisma && npx prisma migrate deploy --schema=src/prisma/schema.prisma && node src/prisma/seed.js",
     "seed": "npx prisma migrate deploy --schema=src/prisma/schema.prisma && npx prisma db seed --schema=src/prisma/schema.prisma"
   },
