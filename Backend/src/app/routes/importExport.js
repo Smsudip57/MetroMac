@@ -1,5 +1,6 @@
 import express from "express";
 import { exportData, importData, getImportExportConfig } from "../modules/importExport.js";
+import { auth } from "../middleware/auth.js";
 import multer from "multer";
 
 const router = express.Router();
@@ -29,7 +30,7 @@ const upload = multer({
 });
 
 
-router.get("/export", exportData);
+router.get("/export",auth(), exportData);
 
 router.post("/import", upload.single("file"), importData);
 
