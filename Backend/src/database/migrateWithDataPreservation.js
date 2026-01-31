@@ -28,101 +28,101 @@ const MIGRATIONS_DIR = path.join(__dirname, "..", "prisma", "migrations");
 // This ensures the entire current schema is captured in one clean migration file
 
 async function exportData() {
-  console.log("[1] 📤 EXPORTING DATABASE DATA...");
-  try {
-    const data = {
-      timestamp: new Date().toISOString(),
-      users: [],
-      roles: [],
-      modules: [],
-      permissions: [],
-      rolePermissions: [],
-      userPermissions: [],
-      tasks: [],
-      taskComments: [],
-      taskFiles: [],
-      taskAlerts: [],
-      generalSettings: [],
-      pushSubscriptions: [],
-    };
-
-    // Use raw SQL to bypass Prisma enum validation
-    const databaseUrl = process.env.DATABASE_URL;
-    const client = new Client({
-      connectionString: databaseUrl,
-    });
-
-    await client.connect();
-
+    console.log("[1] 📤 EXPORTING DATABASE DATA...");
     try {
-      // Export all data using raw SQL
-      console.log("   • Exporting users...");
-      const usersResult = await client.query("SELECT * FROM \"User\"");
-      data.users = usersResult.rows;
+        const data = {
+            timestamp: new Date().toISOString(),
+            users: [],
+            roles: [],
+            modules: [],
+            permissions: [],
+            rolePermissions: [],
+            userPermissions: [],
+            tasks: [],
+            taskComments: [],
+            taskFiles: [],
+            taskAlerts: [],
+            generalSettings: [],
+            pushSubscriptions: [],
+        };
 
-      console.log("   • Exporting roles...");
-      const rolesResult = await client.query("SELECT * FROM \"Role\"");
-      data.roles = rolesResult.rows;
+        // Use raw SQL to bypass Prisma enum validation
+        const databaseUrl = process.env.DATABASE_URL;
+        const client = new Client({
+            connectionString: databaseUrl,
+        });
 
-      console.log("   • Exporting modules...");
-      const modulesResult = await client.query("SELECT * FROM \"Module\"");
-      data.modules = modulesResult.rows;
+        await client.connect();
 
-      console.log("   • Exporting permissions...");
-      const permissionsResult = await client.query("SELECT * FROM \"Permission\"");
-      data.permissions = permissionsResult.rows;
+        try {
+            // Export all data using raw SQL
+            console.log("   • Exporting users...");
+            const usersResult = await client.query("SELECT * FROM \"User\"");
+            data.users = usersResult.rows;
 
-      console.log("   • Exporting role permissions...");
-      const rolePermissionsResult = await client.query("SELECT * FROM \"RolePermission\"");
-      data.rolePermissions = rolePermissionsResult.rows;
+            console.log("   • Exporting roles...");
+            const rolesResult = await client.query("SELECT * FROM \"Role\"");
+            data.roles = rolesResult.rows;
 
-      console.log("   • Exporting user permissions...");
-      const userPermissionsResult = await client.query("SELECT * FROM \"UserPermission\"");
-      data.userPermissions = userPermissionsResult.rows;
+            console.log("   • Exporting modules...");
+            const modulesResult = await client.query("SELECT * FROM \"Module\"");
+            data.modules = modulesResult.rows;
 
-      console.log("   • Exporting tasks (including 'active' status values)...");
-      const tasksResult = await client.query("SELECT * FROM \"Task\"");
-      data.tasks = tasksResult.rows;
+            console.log("   • Exporting permissions...");
+            const permissionsResult = await client.query("SELECT * FROM \"Permission\"");
+            data.permissions = permissionsResult.rows;
 
-      console.log("   • Exporting task comments...");
-      const taskCommentsResult = await client.query("SELECT * FROM \"TaskComment\"");
-      data.taskComments = taskCommentsResult.rows;
+            console.log("   • Exporting role permissions...");
+            const rolePermissionsResult = await client.query("SELECT * FROM \"RolePermission\"");
+            data.rolePermissions = rolePermissionsResult.rows;
 
-      console.log("   • Exporting task files...");
-      const taskFilesResult = await client.query("SELECT * FROM \"TaskFile\"");
-      data.taskFiles = taskFilesResult.rows;
+            console.log("   • Exporting user permissions...");
+            const userPermissionsResult = await client.query("SELECT * FROM \"UserPermission\"");
+            data.userPermissions = userPermissionsResult.rows;
 
-      console.log("   • Exporting task alerts...");
-      const taskAlertsResult = await client.query("SELECT * FROM \"TaskAlert\"");
-      data.taskAlerts = taskAlertsResult.rows;
+            console.log("   • Exporting tasks (including 'active' status values)...");
+            const tasksResult = await client.query("SELECT * FROM \"Task\"");
+            data.tasks = tasksResult.rows;
 
-      console.log("   • Exporting general settings...");
-      const generalSettingsResult = await client.query("SELECT * FROM \"GeneralSetting\"");
-      data.generalSettings = generalSettingsResult.rows;
+            console.log("   • Exporting task comments...");
+            const taskCommentsResult = await client.query("SELECT * FROM \"TaskComment\"");
+            data.taskComments = taskCommentsResult.rows;
 
-      console.log("   • Exporting push subscriptions...");
-      const pushSubscriptionsResult = await client.query("SELECT * FROM \"PushSubscription\"");
-      data.pushSubscriptions = pushSubscriptionsResult.rows;
-    } finally {
-      await client.end();
+            console.log("   • Exporting task files...");
+            const taskFilesResult = await client.query("SELECT * FROM \"TaskFile\"");
+            data.taskFiles = taskFilesResult.rows;
+
+            console.log("   • Exporting task alerts...");
+            const taskAlertsResult = await client.query("SELECT * FROM \"TaskAlert\"");
+            data.taskAlerts = taskAlertsResult.rows;
+
+            console.log("   • Exporting general settings...");
+            const generalSettingsResult = await client.query("SELECT * FROM \"GeneralSetting\"");
+            data.generalSettings = generalSettingsResult.rows;
+
+            console.log("   • Exporting push subscriptions...");
+            const pushSubscriptionsResult = await client.query("SELECT * FROM \"PushSubscription\"");
+            data.pushSubscriptions = pushSubscriptionsResult.rows;
+        } finally {
+            await client.end();
+        }
+
+        // Create backup directory if it doesn't exist
+        if (!fs.existsSync(BACKUP_DIR)) {
+            fs.mkdirSync(BACKUP_DIR, { recursive: true });
+        }
+
+        // Save to file
+        fs.writeFileSync(BACKUP_FILE, JSON.stringify(data, null, 2));
+        console.log(`\n✅ Data exported successfully to: ${BACKUP_FILE}`);
+        console.log(`   Total records: ${Object.values(data).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0)}`);
+
+        return data;
+    } catch (error) {
+        console.error("❌ Export failed:", error);
+        throw error;
     }
-
-    // Create backup directory if it doesn't exist
-    if (!fs.existsSync(BACKUP_DIR)) {
-      fs.mkdirSync(BACKUP_DIR, { recursive: true });
-    }
-
-    // Save to file
-    fs.writeFileSync(BACKUP_FILE, JSON.stringify(data, null, 2));
-    console.log(`\n✅ Data exported successfully to: ${BACKUP_FILE}`);
-    console.log(`   Total records: ${Object.values(data).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0)}`);
-
-    return data;
-  } catch (error) {
-    console.error("❌ Export failed:", error);
-    throw error;
-  }
-}function deleteAllMigrations() {
+} function deleteAllMigrations() {
     console.log("\n[2] 🗑️  DELETING ALL MIGRATION FILES...");
     try {
         if (!fs.existsSync(MIGRATIONS_DIR)) {
