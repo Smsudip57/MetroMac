@@ -44,6 +44,7 @@
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.10",
     "papaparse": "^5.4.1",
+    "pg": "^8.18.0",
     "prisma": "^5.10.0",
     "puppeteer": "^21.6.1",
     "rc-tree": "^5.13.1",

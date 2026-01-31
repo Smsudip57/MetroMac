@@ -12,6 +12,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
+import pkg from "pg";
+const { Client } = pkg;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,79 +28,101 @@ const MIGRATIONS_DIR = path.join(__dirname, "..", "prisma", "migrations");
 // This ensures the entire current schema is captured in one clean migration file
 
 async function exportData() {
-    console.log("[1] 📤 EXPORTING DATABASE DATA...");
+  console.log("[1] 📤 EXPORTING DATABASE DATA...");
+  try {
+    const data = {
+      timestamp: new Date().toISOString(),
+      users: [],
+      roles: [],
+      modules: [],
+      permissions: [],
+      rolePermissions: [],
+      userPermissions: [],
+      tasks: [],
+      taskComments: [],
+      taskFiles: [],
+      taskAlerts: [],
+      generalSettings: [],
+      pushSubscriptions: [],
+    };
+
+    // Use raw SQL to bypass Prisma enum validation
+    const databaseUrl = process.env.DATABASE_URL;
+    const client = new Client({
+      connectionString: databaseUrl,
+    });
+
+    await client.connect();
+
     try {
-        const data = {
-            timestamp: new Date().toISOString(),
-            users: [],
-            roles: [],
-            modules: [],
-            permissions: [],
-            rolePermissions: [],
-            userPermissions: [],
-            tasks: [],
-            taskComments: [],
-            taskFiles: [],
-            taskAlerts: [],
-            generalSettings: [],
-            pushSubscriptions: [],
-        };
+      // Export all data using raw SQL
+      console.log("   • Exporting users...");
+      const usersResult = await client.query("SELECT * FROM \"User\"");
+      data.users = usersResult.rows;
 
-        // Export all data
-        console.log("   • Exporting users...");
-        data.users = await prisma.user.findMany();
+      console.log("   • Exporting roles...");
+      const rolesResult = await client.query("SELECT * FROM \"Role\"");
+      data.roles = rolesResult.rows;
 
-        console.log("   • Exporting roles...");
-        data.roles = await prisma.role.findMany();
+      console.log("   • Exporting modules...");
+      const modulesResult = await client.query("SELECT * FROM \"Module\"");
+      data.modules = modulesResult.rows;
 
-        console.log("   • Exporting modules...");
-        data.modules = await prisma.module.findMany();
+      console.log("   • Exporting permissions...");
+      const permissionsResult = await client.query("SELECT * FROM \"Permission\"");
+      data.permissions = permissionsResult.rows;
 
-        console.log("   • Exporting permissions...");
-        data.permissions = await prisma.permission.findMany();
+      console.log("   • Exporting role permissions...");
+      const rolePermissionsResult = await client.query("SELECT * FROM \"RolePermission\"");
+      data.rolePermissions = rolePermissionsResult.rows;
 
-        console.log("   • Exporting role permissions...");
-        data.rolePermissions = await prisma.rolePermission.findMany();
+      console.log("   • Exporting user permissions...");
+      const userPermissionsResult = await client.query("SELECT * FROM \"UserPermission\"");
+      data.userPermissions = userPermissionsResult.rows;
 
-        console.log("   • Exporting user permissions...");
-        data.userPermissions = await prisma.userPermission.findMany();
+      console.log("   • Exporting tasks (including 'active' status values)...");
+      const tasksResult = await client.query("SELECT * FROM \"Task\"");
+      data.tasks = tasksResult.rows;
 
-        console.log("   • Exporting tasks...");
-        data.tasks = await prisma.task.findMany();
+      console.log("   • Exporting task comments...");
+      const taskCommentsResult = await client.query("SELECT * FROM \"TaskComment\"");
+      data.taskComments = taskCommentsResult.rows;
 
-        console.log("   • Exporting task comments...");
-        data.taskComments = await prisma.taskComment.findMany();
+      console.log("   • Exporting task files...");
+      const taskFilesResult = await client.query("SELECT * FROM \"TaskFile\"");
+      data.taskFiles = taskFilesResult.rows;
 
-        console.log("   • Exporting task files...");
-        data.taskFiles = await prisma.taskFile.findMany();
+      console.log("   • Exporting task alerts...");
+      const taskAlertsResult = await client.query("SELECT * FROM \"TaskAlert\"");
+      data.taskAlerts = taskAlertsResult.rows;
 
-        console.log("   • Exporting task alerts...");
-        data.taskAlerts = await prisma.taskAlert.findMany();
+      console.log("   • Exporting general settings...");
+      const generalSettingsResult = await client.query("SELECT * FROM \"GeneralSetting\"");
+      data.generalSettings = generalSettingsResult.rows;
 
-        console.log("   • Exporting general settings...");
-        data.generalSettings = await prisma.generalSetting.findMany();
-
-        console.log("   • Exporting push subscriptions...");
-        data.pushSubscriptions = await prisma.pushSubscription.findMany();
-
-        // Create backup directory if it doesn't exist
-        if (!fs.existsSync(BACKUP_DIR)) {
-            fs.mkdirSync(BACKUP_DIR, { recursive: true });
-        }
-
-        // Save to file
-        fs.writeFileSync(BACKUP_FILE, JSON.stringify(data, null, 2));
-        console.log(`\n✅ Data exported successfully to: ${BACKUP_FILE}`);
-        console.log(`   Total records: ${Object.values(data).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0)}`);
-
-        return data;
-    } catch (error) {
-        console.error("❌ Export failed:", error);
-        throw error;
+      console.log("   • Exporting push subscriptions...");
+      const pushSubscriptionsResult = await client.query("SELECT * FROM \"PushSubscription\"");
+      data.pushSubscriptions = pushSubscriptionsResult.rows;
+    } finally {
+      await client.end();
     }
-}
 
-function deleteAllMigrations() {
+    // Create backup directory if it doesn't exist
+    if (!fs.existsSync(BACKUP_DIR)) {
+      fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    }
+
+    // Save to file
+    fs.writeFileSync(BACKUP_FILE, JSON.stringify(data, null, 2));
+    console.log(`\n✅ Data exported successfully to: ${BACKUP_FILE}`);
+    console.log(`   Total records: ${Object.values(data).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0)}`);
+
+    return data;
+  } catch (error) {
+    console.error("❌ Export failed:", error);
+    throw error;
+  }
+}function deleteAllMigrations() {
     console.log("\n[2] 🗑️  DELETING ALL MIGRATION FILES...");
     try {
         if (!fs.existsSync(MIGRATIONS_DIR)) {
