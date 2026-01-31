@@ -454,11 +454,11 @@ async function updateUser(req, res, next) {
             data.company_address = company_address;
         } else {
           // If user is trying to set company fields on non-external role, reject
-          return res.status(400).json({
-            success: false,
-            message:
-              "Company fields can only be set for users with external role type.",
-          });
+          // return res.status(400).json({
+          //   success: false,
+          //   message:
+          //     "Company fields can only be set for users with external role type.",
+          // });
         }
       } else {
         // No role assigned, cannot set company fields

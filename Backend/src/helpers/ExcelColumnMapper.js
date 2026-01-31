@@ -18,7 +18,7 @@ export class ColumnMapper {
         formatter: (obj) =>
           obj.status
             ? obj.status.charAt(0).toUpperCase() +
-              obj.status.slice(1).replace(/_/g, " ")
+            obj.status.slice(1).replace(/_/g, " ")
             : "",
       },
       assigned_to_name: {
@@ -48,6 +48,12 @@ export class ColumnMapper {
       end_date: {
         header: "End Date",
         dbField: "end_date",
+        type: "date",
+        format: "YYYY-MM-DD",
+      },
+      created_date: {
+        header: "Created Date",
+        dbField: "created_at",
         type: "date",
         format: "YYYY-MM-DD",
       },

@@ -32,30 +32,30 @@ class PDFTemplates {
           .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 30px;
-            margin-bottom: 30px;
+            padding: 20px;
+            margin-bottom: 20px;
             border-radius: 8px;
           }
           
           .header h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
+            font-size: 22px;
+            margin-bottom: 8px;
           }
           
           .header p {
-            font-size: 14px;
+            font-size: 12px;
             opacity: 0.9;
           }
           
           .content {
-            padding: 20px;
+            padding: 15px;
           }
           
           .footer {
-            margin-top: 40px;
-            padding-top: 20px;
+            margin-top: 25px;
+            padding-top: 15px;
             border-top: 1px solid #ddd;
-            font-size: 12px;
+            font-size: 11px;
             color: #666;
             text-align: center;
           }
@@ -71,16 +71,18 @@ class PDFTemplates {
           }
           
           th {
-            padding: 12px;
+            padding: 8px 10px;
             text-align: left;
             font-weight: 600;
             border-bottom: 2px solid #667eea;
             color: #333;
+            font-size: 12px;
           }
           
           td {
-            padding: 10px 12px;
+            padding: 7px 10px;
             border-bottom: 1px solid #eee;
+            font-size: 11px;
           }
           
           tr:hover {
@@ -106,35 +108,36 @@ class PDFTemplates {
           
           .badge-pending { background-color: #FFA500; }
           .badge-submitted { background-color: #4169E1; }
-          .badge-in_progress { background-color: #FF69B4; }
+          .badge-acknowledged { background-color: #FF69B4; }
           .badge-on_hold { background-color: #FFB6C1; }
+          .badge-rework { background-color: #FF8C00; }
           .badge-completed { background-color: #32CD32; }
           .badge-cancelled { background-color: #FF6347; }
           
           .summary {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin: 20px 0;
+            gap: 10px;
+            margin: 15px 0;
           }
           
           .summary-box {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 15px;
+            padding: 10px;
             border-radius: 8px;
             text-align: center;
           }
           
           .summary-box .number {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: bold;
           }
           
           .summary-box .label {
-            font-size: 12px;
+            font-size: 11px;
             opacity: 0.9;
-            margin-top: 5px;
+            margin-top: 3px;
           }
         </style>
       </head>
@@ -167,12 +170,12 @@ class PDFTemplates {
         <td>${task.title}</td>
         <td>${task.assigned_to}</td>
         <td>
-          <span class="status badge-${task.status.toLowerCase()}">${
-          task.status
-        }</span>
+          <span class="status badge-${task.status.toLowerCase()}">${task.status
+          }</span>
         </td>
         <td>${task.start_date}</td>
         <td>${task.end_date}</td>
+        <td>${task.created_date}</td>
         <td>${task.submission_date}</td>
         <td>${task.completion_date}</td>
       </tr>
@@ -192,15 +195,15 @@ class PDFTemplates {
             <th>Status</th>
             <th>Start Date</th>
             <th>End Date</th>
+            <th>Created Date</th>
             <th>Submitted Date</th>
             <th>Completed Date</th>
           </tr>
         </thead>
         <tbody>
-          ${
-            tableRows ||
-            '<tr><td colspan="7" class="text-center">No tasks found</td></tr>'
-          }
+          ${tableRows ||
+      '<tr><td colspan="8" class="text-center">No tasks found</td></tr>'
+      }
         </tbody>
       </table>
     `;
@@ -225,8 +228,8 @@ class PDFTemplates {
           <div class="label">Pending</div>
         </div>
         <div class="summary-box">
-          <div class="number">${summary.inProgress || 0}</div>
-          <div class="label">In Progress</div>
+          <div class="number">${summary.acknowledged || 0}</div>
+          <div class="label">Acknowledged</div>
         </div>
         <div class="summary-box">
           <div class="number">${summary.completed || 0}</div>
@@ -247,8 +250,8 @@ class PDFTemplates {
         (r) => r.status === "completed",
       ).length;
       summary.pending = records.filter((r) => r.status === "pending").length;
-      summary.inProgress = records.filter(
-        (r) => r.status === "in_progress",
+      summary.acknowledged = records.filter(
+        (r) => r.status === "acknowledged",
       ).length;
     }
 

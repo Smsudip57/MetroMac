@@ -274,7 +274,7 @@ async function createTask(req, res, next) {
           task.reporter.username;
         const assigneeName = task.assignee
           ? `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
-            task.assignee.username
+          task.assignee.username
           : "Unassigned";
 
         const emailHtml = taskReporterSupervisionTemplate(
@@ -341,13 +341,13 @@ async function getTaskStats(req, res, next) {
       ];
     }
 
-    const [totalTasks, activeTasks, completedTasks, overdueTasks] =
+    const [totalTasks, acknowledgedTasks, completedTasks, overdueTasks] =
       await Promise.all([
         prisma.task.count({ where: baseWhere }),
         prisma.task.count({
           where: {
             ...baseWhere,
-            status: { in: ["in_progress", "submitted"] },
+            status: { in: ["acknowledged"] },
           },
         }),
         prisma.task.count({
@@ -367,8 +367,8 @@ async function getTaskStats(req, res, next) {
       data: {
         totalTasks,
         totalTasksChange: 0,
-        activeTasks,
-        activeTasksChange: 0,
+        acknowledgedTasks,
+        acknowledgedTasksChange: 0,
         completedTasks,
         completedTasksChange: 0,
         overdueTasks,
@@ -380,6 +380,165 @@ async function getTaskStats(req, res, next) {
   }
 }
 
+// ==================== STANDALONE FILTER BUILDER ====================
+// Build task filters based on query parameters and user role
+// Used by both getTasks endpoint and exportData function
+function buildTaskFilters(filters, userId, userRole, userIsSuperUser) {
+  let where = { is_archived: false };
+  const isManager =
+    userRole?.toLowerCase() === "manager" ||
+    userRole?.toLowerCase() === "employee";
+
+  // Super users can view archived tasks if requested
+  if (filters.showArchived === "true") {
+    where.is_archived = true;
+  }
+
+  // Manager role filter - can only see tasks they created or are assigned to
+  if (isManager && !userIsSuperUser) {
+    where.OR = [
+      { reporter_id: userId },
+      { assigned_to: userId },
+      { created_by: userId },
+    ];
+  }
+
+  // Search filter
+  if (filters.search) {
+    const searchCondition = [
+      { title: { contains: filters.search, mode: "insensitive" } },
+      { description: { contains: filters.search, mode: "insensitive" } },
+    ];
+
+    if (where.OR) {
+      // Manager filter exists, combine search with manager filter using AND
+      where = {
+        AND: [{ OR: where.OR }, { OR: searchCondition }],
+      };
+    } else {
+      where.OR = searchCondition;
+    }
+  }
+
+  // Status filter
+  if (
+    filters.status &&
+    [
+      "pending",
+      "submitted",
+      "acknowledged",
+      "on_hold",
+      "rework",
+      "completed",
+      "cancelled",
+    ].includes(filters.status)
+  ) {
+    where.status = filters.status;
+  }
+
+  // Assigned to filter
+  if (filters.assigned_to) {
+    where.assigned_to = parseInt(filters.assigned_to);
+  }
+
+  // Assigned by filter (created_by)
+  if (filters.assigned_by) {
+    where.created_by = parseInt(filters.assigned_by);
+  }
+
+  // Reporter filter
+  if (filters.reporter_id) {
+    where.reporter_id = parseInt(filters.reporter_id);
+  }
+
+  // Date range filter (fromDate and toDate)
+  if (filters.fromDate || filters.toDate) {
+    const andConditions = [];
+
+    if (filters.fromDate) {
+      const [year, month, day] = filters.fromDate.split("-");
+      const fromDateObj = new Date(
+        Date.UTC(
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day),
+          0,
+          0,
+          0,
+          0,
+        ),
+      );
+      andConditions.push({ start_date: { gte: fromDateObj } });
+    }
+
+    if (filters.toDate) {
+      const [year, month, day] = filters.toDate.split("-");
+      const toDateObj = new Date(
+        Date.UTC(
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day),
+          23,
+          59,
+          59,
+          999,
+        ),
+      );
+      andConditions.push({ end_date: { lte: toDateObj } });
+    }
+
+    if (andConditions.length > 0) {
+      const currentConditions = [];
+
+      if (where.AND) {
+        where.AND.push(...andConditions);
+      } else if (where.OR) {
+        currentConditions.push({ OR: where.OR });
+
+        if (where.status !== undefined) {
+          currentConditions.push({ status: where.status });
+          delete where.status;
+        }
+        if (where.assigned_to !== undefined) {
+          currentConditions.push({ assigned_to: where.assigned_to });
+          delete where.assigned_to;
+        }
+        if (where.reporter_id !== undefined) {
+          currentConditions.push({ reporter_id: where.reporter_id });
+          delete where.reporter_id;
+        }
+
+        currentConditions.push(...andConditions);
+
+        where = {
+          AND: currentConditions,
+        };
+      } else {
+        currentConditions.push(...andConditions);
+
+        if (where.status !== undefined) {
+          currentConditions.push({ status: where.status });
+        }
+        if (where.assigned_to !== undefined) {
+          currentConditions.push({ assigned_to: where.assigned_to });
+        }
+        if (where.reporter_id !== undefined) {
+          currentConditions.push({ reporter_id: where.reporter_id });
+        }
+        if (where.is_archived !== undefined) {
+          currentConditions.push({ is_archived: where.is_archived });
+        }
+
+        where = {
+          AND: currentConditions,
+        };
+      }
+    }
+  }
+
+  return where;
+}
+
 // Get all tasks with pagination and filtering
 async function getTasks(req, res, next) {
   try {
@@ -389,6 +548,7 @@ async function getTasks(req, res, next) {
       search,
       status,
       assigned_to,
+      assigned_by,
       reporter_id,
       fromDate,
       toDate,
@@ -398,166 +558,13 @@ async function getTasks(req, res, next) {
     } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    let where = { is_archived: false };
-    const isManager =
-      req?.user?.role?.toLowerCase() === "manager" ||
-      req?.user?.role?.toLowerCase() === "employee";
-
-    // Super users can view archived tasks if requested
-    if (showArchived === "true") {
-      where.is_archived = true;
-    }
-
-    // Manager role filter - can only see tasks they created or are assigned to
-    if (isManager) {
-      where.OR = [
-        { reporter_id: req.user.id },
-        { assigned_to: req.user.id },
-        { created_by: req.user.id },
-      ];
-    }
-
-    // Search filter
-    if (search) {
-      const searchCondition = [
-        { title: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-      ];
-
-      if (where.OR) {
-        // Manager filter exists, combine search with manager filter using AND
-        where = {
-          AND: [{ OR: where.OR }, { OR: searchCondition }],
-        };
-      } else {
-        where.OR = searchCondition;
-      }
-    }
-
-    // Status filter
-    if (
-      status &&
-      [
-        "pending",
-        "submitted",
-        "active",
-        "in_progress",
-        "on_hold",
-        "completed",
-        "cancelled",
-      ].includes(status)
-    ) {
-      where.status = status;
-    }
-
-    // Assigned to filter
-    if (assigned_to) {
-      where.assigned_to = parseInt(assigned_to);
-    }
-
-    // Reporter filter - allows filtering by task reporter/supervisor
-    if (reporter_id) {
-      where.reporter_id = parseInt(reporter_id);
-    }
-
-    // Date range filter (fromDate and toDate)
-    // Tasks must have: start_date >= fromDate AND end_date <= toDate
-    if (fromDate || toDate) {
-      const andConditions = [];
-
-      if (fromDate) {
-        // Parse date string (format: YYYY-MM-DD) and create UTC date at start of day
-        const [year, month, day] = fromDate.split("-");
-        const fromDateObj = new Date(
-          Date.UTC(
-            parseInt(year),
-            parseInt(month) - 1,
-            parseInt(day),
-            0,
-            0,
-            0,
-            0,
-          ),
-        );
-
-        // Task start_date must be >= fromDate
-        andConditions.push({ start_date: { gte: fromDateObj } });
-      }
-
-      if (toDate) {
-        // Parse date string (format: YYYY-MM-DD) and create UTC date at end of day
-        const [year, month, day] = toDate.split("-");
-        const toDateObj = new Date(
-          Date.UTC(
-            parseInt(year),
-            parseInt(month) - 1,
-            parseInt(day),
-            23,
-            59,
-            59,
-            999,
-          ),
-        );
-
-        // Task end_date must be <= toDate
-        andConditions.push({ end_date: { lte: toDateObj } });
-      }
-
-      if (andConditions.length > 0) {
-        // Extract current where conditions (excluding AND if it exists)
-        const currentConditions = [];
-
-        if (where.AND) {
-          // If AND already exists, add date conditions to it
-          where.AND.push(...andConditions);
-        } else if (where.OR) {
-          // If OR exists (manager filter), wrap both OR and new conditions in AND
-          currentConditions.push({ OR: where.OR });
-
-          // Add simple filters (status, assigned_to, reporter_id) to AND
-          if (where.status !== undefined) {
-            currentConditions.push({ status: where.status });
-            delete where.status;
-          }
-          if (where.assigned_to !== undefined) {
-            currentConditions.push({ assigned_to: where.assigned_to });
-            delete where.assigned_to;
-          }
-          if (where.reporter_id !== undefined) {
-            currentConditions.push({ reporter_id: where.reporter_id });
-            delete where.reporter_id;
-          }
-
-          // Add date conditions
-          currentConditions.push(...andConditions);
-
-          where = {
-            AND: currentConditions,
-          };
-        } else {
-          // No OR or AND, just add date conditions as AND
-          // But preserve existing simple filters (status, assigned_to, reporter_id)
-          currentConditions.push(...andConditions);
-
-          if (where.status !== undefined) {
-            currentConditions.push({ status: where.status });
-          }
-          if (where.assigned_to !== undefined) {
-            currentConditions.push({ assigned_to: where.assigned_to });
-          }
-          if (where.reporter_id !== undefined) {
-            currentConditions.push({ reporter_id: where.reporter_id });
-          }
-          if (where.is_archived !== undefined) {
-            currentConditions.push({ is_archived: where.is_archived });
-          }
-
-          where = {
-            AND: currentConditions,
-          };
-        }
-      }
-    }
+    // Use buildTaskFilters to get consistent filtering logic
+    const where = buildTaskFilters(
+      { search, status, assigned_to, assigned_by, reporter_id, fromDate, toDate, showArchived },
+      req.user.id,
+      req.user?.role,
+      req.user?.is_super_user,
+    );
 
     // Build orderBy dynamically
     const validSortFields = [
@@ -567,6 +574,8 @@ async function getTasks(req, res, next) {
       "end_date",
       "created_at",
       "updated_at",
+      "assigned_to",
+      "assigned_by",
     ];
     const finalSortBy = validSortFields.includes(sortBy)
       ? sortBy
@@ -574,6 +583,9 @@ async function getTasks(req, res, next) {
     const finalSortOrder = ["asc", "desc"].includes(sortOrder?.toLowerCase())
       ? sortOrder.toLowerCase()
       : "desc";
+
+    // Map assigned_by to created_by for sorting
+    const sortField = finalSortBy === "assigned_by" ? "created_by" : finalSortBy;
 
     const [tasks, totalCount] = await Promise.all([
       prisma.task.findMany({
@@ -605,7 +617,7 @@ async function getTasks(req, res, next) {
           comments: { select: { id: true } },
           attachments: { select: { id: true } },
         },
-        orderBy: { [finalSortBy]: finalSortOrder },
+        orderBy: { [sortField]: finalSortOrder },
       }),
       prisma.task.count({ where }),
     ]);
@@ -909,12 +921,12 @@ async function updateTask(req, res, next) {
 
     const isStatusCompletedUpdate =
       changes.status && changes.status.new === "completed";
-    const isStatusInProgressUpdate =
-      changes.status && changes.status.new === "in_progress";
+    const isStatusAcknowledgedUpdate =
+      changes.status && changes.status.new === "acknowledged";
     const isStatusSubmittedUpdate =
       changes.status && changes.status.new === "submitted";
-    const isStatusSubmittedorInProgress =
-      isStatusSubmittedUpdate || isStatusInProgressUpdate;
+    const isStatusSubmittedorAcknowledged =
+      isStatusSubmittedUpdate || isStatusAcknowledgedUpdate;
     const isTryingToUpdateStatus =
       changes.status && changes.status.new !== currentTask.status;
     const isAssigneeTryingToUpdateThatHeDidntCreate =
@@ -930,25 +942,25 @@ async function updateTask(req, res, next) {
             .map((a) => new Date(a.alert_date).getTime())
             .sort((a, b) => a - b),
         ) !==
-          JSON.stringify(
-            currentTask.taskAlerts
-              .map((a) => new Date(a.alert_date).getTime())
-              .sort((a, b) => a - b),
-          ));
+        JSON.stringify(
+          currentTask.taskAlerts
+            .map((a) => new Date(a.alert_date).getTime())
+            .sort((a, b) => a - b),
+        ));
 
     // if assignee trys to update more than status and he didn't create that task, block it, but allow if he assigned that task to himself
     if (
       !req.user.is_super_user &&
-      ((isStatusSubmittedorInProgress &&
+      ((isTryingToUpdateStatus &&
         isAssigneeTryingToUpdateThatHeDidntCreate &&
-        (Object.keys(changes).length > 1 || alertsModified)) ||
+        (Object.keys(changes).length > 1 || alertsModified || !isStatusSubmittedorAcknowledged)) ||
         (!isTryingToUpdateStatus &&
           isAssigneeTryingToUpdateThatHeDidntCreate &&
           (Object.keys(changes).length > 0 || alertsModified)))
     ) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        "You can only update status to in_progress or submitted!",
+        "You can only update status to acknowledged or submitted!",
       );
     }
 
@@ -981,9 +993,11 @@ async function updateTask(req, res, next) {
       // Set submission_date when status changes to submitted
       if (status === "submitted" && currentTask.status !== "submitted") {
         data.submission_date = new Date();
+        data.completion_date = null;
       }
       // Set completion_date when status changes to completed
       if (status === "completed" && currentTask.status !== "completed") {
+        data.submission_date = new Date();
         data.completion_date = new Date();
       }
       // If status is on_hold, capture hold details
@@ -1219,7 +1233,7 @@ async function updateTask(req, res, next) {
           newReporter.username;
         const assigneeName = task.assignee
           ? `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
-            task.assignee.username
+          task.assignee.username
           : "Unassigned";
 
         const emailHtml = taskReporterSupervisionTemplate(
@@ -1337,9 +1351,8 @@ async function updateTask(req, res, next) {
       try {
         await PushNotificationService.sendToUser(task.reporter_id, {
           title: "Task Submitted for Review",
-          body: `${
-            task.assignee?.firstName || "Someone"
-          } has submitted the task "${task.title}" for approval`,
+          body: `${task.assignee?.firstName || "Someone"
+            } has submitted the task "${task.title}" for approval`,
           icon: "/icons/notification-icon.png",
           badge: "/icons/notification-badge.png",
           data: {
@@ -1458,9 +1471,9 @@ async function updateTask(req, res, next) {
       }
     }
 
-    // 4a. Send notification to reporter when assignee changes status to in_progress
+    // 4a. Send notification to reporter when assignee changes status to acknowledged
     if (
-      isStatusInProgressUpdate &&
+      isStatusAcknowledgedUpdate &&
       isAssigneeTryingToUpdateThatHeDidntCreate &&
       task.reporter &&
       task.reporter.email
@@ -1482,12 +1495,12 @@ async function updateTask(req, res, next) {
 
         await emailService.sendEmail({
           to: task.reporter.email,
-          subject: `Task In Progress: ${task.title}`,
+          subject: `Task Acknowledged: ${task.title}`,
           html: emailHtml,
         });
       } catch (emailError) {
         console.error(
-          "Failed to send task in-progress email to reporter:",
+          "Failed to send task acknowledged email to reporter:",
           emailError,
         );
       }
@@ -1495,20 +1508,19 @@ async function updateTask(req, res, next) {
       // Send push notification to reporter
       try {
         await PushNotificationService.sendToUser(task.reporter_id, {
-          title: "Task In Progress",
-          body: `${
-            task.assignee?.firstName || "Someone"
-          } has started working on "${task.title}"`,
+          title: "Task Acknowledged",
+          body: `${task.assignee?.firstName || "Someone"
+            } has acknowledged "${task.title}"`,
           icon: "/icons/notification-icon.png",
           badge: "/icons/notification-badge.png",
           data: {
-            type: "task_in_progress",
+            type: "task_acknowledged",
             taskId: task.id,
           },
         });
       } catch (pushError) {
         console.error(
-          "Failed to send task in-progress push notification:",
+          "Failed to send task acknowledged push notification:",
           pushError,
         );
       }
@@ -1688,8 +1700,7 @@ async function addTaskAlert(req, res, next) {
     if (alertDate < task.start_date) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        `Alert date must be equal to or after task start date (${
-          task.start_date.toISOString().split("T")[0]
+        `Alert date must be equal to or after task start date (${task.start_date.toISOString().split("T")[0]
         })`,
       );
     }
@@ -2203,6 +2214,7 @@ async function attachAttachmentToTask(req, res, next) {
 }
 
 export {
+  buildTaskFilters,
   createTask,
   getTasks,
   getTaskById,

@@ -27,8 +27,9 @@ import { Button } from "@/components/ui/button";
 const STATUS_MAP: Record<string, string> = {
   pending: "Pending",
   submitted: "Submitted",
-  in_progress: "In Progress",
+  acknowledged: "Acknowledged",
   on_hold: "On Hold",
+  rework: "Rework",
   completed: "Completed",
   cancelled: "Cancelled",
 };
@@ -270,6 +271,18 @@ export default function ViewTasks() {
                     }
                   >
                     {formatDate.getDate(task.end_date)}
+                  </p>
+                </FieldWrapper>
+                <FieldWrapper>
+                  <FieldLabel>Created Date</FieldLabel>
+                  <p
+                    className={
+                      isMobile
+                        ? "text-xs font-medium text-text rounded-xl"
+                        : "text-sm font-medium text-text rounded-xl"
+                    }
+                  >
+                    {formatDate.getDate(task.created_at)}
                   </p>
                 </FieldWrapper>
               </div>
@@ -575,21 +588,18 @@ export default function ViewTasks() {
                     onDragLeave={handleDrag}
                     onDragOver={handleDrag}
                     onDrop={handleDrop}
-                    className={`relative rounded-xl transition-colors ${
-                      dragActive ? "bg-primary/5" : ""
-                    }`}
+                    className={`relative rounded-xl transition-colors ${dragActive ? "bg-primary/5" : ""
+                      }`}
                   >
                     <textarea
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       placeholder="Write your comment..."
-                      className={`w-full ${
-                        isMobile
-                          ? "h-20 px-3 py-2 text-xs"
-                          : "h-24 px-4 py-2.5 text-sm"
-                      } bg-transparent border ${
-                        dragActive ? "border-primary" : "border-border"
-                      } rounded-xl text-text placeholder-text_highlight resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary`}
+                      className={`w-full ${isMobile
+                        ? "h-20 px-3 py-2 text-xs"
+                        : "h-24 px-4 py-2.5 text-sm"
+                        } bg-transparent border ${dragActive ? "border-primary" : "border-border"
+                        } rounded-xl text-text placeholder-text_highlight resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary`}
                     />
                   </div>
 
@@ -615,9 +625,8 @@ export default function ViewTasks() {
                       />
                       <label
                         htmlFor="comment-file-input"
-                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:bg-bg transition-colors cursor-pointer ${
-                          uploadingFiles ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
+                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:bg-bg transition-colors cursor-pointer ${uploadingFiles ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
                       >
                         {uploadingFiles ? (
                           <>

@@ -20,12 +20,12 @@ model Module {
 
 // --- Permissions ---
 model Permission {
-    id                     Int                     @id @default(autoincrement())
-    module_id              Int
-    module                 Module                  @relation(fields: [module_id], references: [id], onDelete: Cascade)
-    action                 String
-    rolePermissions        RolePermission[]
-    userPermissions        UserPermission[]
+    id              Int              @id @default(autoincrement())
+    module_id       Int
+    module          Module           @relation(fields: [module_id], references: [id], onDelete: Cascade)
+    action          String
+    rolePermissions RolePermission[]
+    userPermissions UserPermission[]
 
     @@unique([module_id, action])
 }
@@ -73,15 +73,15 @@ model User {
     company_name    String? // For external users (customers)
     company_address String? // For external users (customers)
 
-    createdAt          DateTime          @default(now())
-    updatedAt          DateTime          @default(now()) @updatedAt
-    userPermissions    UserPermission[]
-    tasksAssigned      Task[]            @relation("TaskAssignee")
-    tasksReported      Task[]            @relation("TaskReporter")
-    tasksCreated       Task[]            @relation("TaskCreator")
-    taskComments       TaskComment[]     @relation("TaskCommentAuthor")
-    uploadedFiles      TaskFile[]        @relation("TaskFileUploader")
-    pushSubscriptions  PushSubscription[]
+    createdAt         DateTime           @default(now())
+    updatedAt         DateTime           @default(now()) @updatedAt
+    userPermissions   UserPermission[]
+    tasksAssigned     Task[]             @relation("TaskAssignee")
+    tasksReported     Task[]             @relation("TaskReporter")
+    tasksCreated      Task[]             @relation("TaskCreator")
+    taskComments      TaskComment[]      @relation("TaskCommentAuthor")
+    uploadedFiles     TaskFile[]         @relation("TaskFileUploader")
+    pushSubscriptions PushSubscription[]
 }
 
 enum TwoFactorType {
@@ -110,51 +110,51 @@ model UserPermission {
 }
 
 model Task {
-    id          Int        @id @default(autoincrement())
-    title       String     // task name
-    description String?
-    assigned_to Int?
-    assignee    User?      @relation("TaskAssignee", fields: [assigned_to], references: [id])
-    reporter_id Int        // employee
-    reporter    User       @relation("TaskReporter", fields: [reporter_id], references: [id])
-    created_by  Int
-    creator     User       @relation("TaskCreator", fields: [created_by], references: [id])
-    start_date  DateTime   @db.Date
-    end_date    DateTime   @db.Date
-    status         TaskStatus @default(pending)
-    hold_reason    String?    // Reason for on_hold status
+    id              Int        @id @default(autoincrement())
+    title           String // task name
+    description     String?
+    assigned_to     Int?
+    assignee        User?      @relation("TaskAssignee", fields: [assigned_to], references: [id])
+    reporter_id     Int // employee
+    reporter        User       @relation("TaskReporter", fields: [reporter_id], references: [id])
+    created_by      Int
+    creator         User       @relation("TaskCreator", fields: [created_by], references: [id])
+    start_date      DateTime   @db.Date
+    end_date        DateTime   @db.Date
+    status          TaskStatus @default(pending)
+    hold_reason     String? // Reason for on_hold status
     submission_date DateTime?  @db.Date // Date when task was submitted
     completion_date DateTime?  @db.Date // Date when task was completed
-    is_archived    Boolean    @default(false)
-    created_at     DateTime   @default(now())
-    updated_at     DateTime   @default(now()) @updatedAt
+    is_archived     Boolean    @default(false)
+    created_at      DateTime   @default(now())
+    updated_at      DateTime   @default(now()) @updatedAt
 
     // Relations
     comments    TaskComment[]
     attachments TaskFile[]
-    taskAlerts  TaskAlert[]  @relation("TaskToAlerts")
+    taskAlerts  TaskAlert[]   @relation("TaskToAlerts")
 }
 
 enum TaskStatus {
-    pending      // Task is pending
-    submitted    // Task is submitted
-    active       // Task is active/in progress (deprecated, use in_progress)
-    in_progress  // Task is active/in progress
-    on_hold      // Task is on hold
-    completed    // Task is completed
-    cancelled    // Task is cancelled
+    pending // Task is pending
+    submitted // Task is submitted
+    acknowledged // Task is acknowledged/in progress
+    on_hold // Task is on hold
+    rework // Task requires rework
+    completed // Task is completed
+    cancelled // Task is cancelled
 }
 
 // Push Notifications
 model PushSubscription {
-    id            Int      @id @default(autoincrement())
-    user_id       Int
-    user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-    endpoint      String   // Push service endpoint
-    auth          String   // Authentication key
-    p256dh        String   // P256 Diffie-Hellman public key
-    created_at    DateTime @default(now())
-    updated_at    DateTime @default(now()) @updatedAt
+    id         Int      @id @default(autoincrement())
+    user_id    Int
+    user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    endpoint   String // Push service endpoint
+    auth       String // Authentication key
+    p256dh     String // P256 Diffie-Hellman public key
+    created_at DateTime @default(now())
+    updated_at DateTime @default(now()) @updatedAt
 
     @@unique([user_id, endpoint])
     @@index([user_id])
@@ -162,14 +162,14 @@ model PushSubscription {
 
 // Comments & Files
 model TaskComment {
-    id       Int      @id @default(autoincrement())
-    content  String
-    task_id  Int
-    task     Task     @relation(fields: [task_id], references: [id])
-    user_id  Int
-    user     User     @relation("TaskCommentAuthor", fields: [user_id], references: [id])
-    created_at   DateTime @default(now())
-    updated_at   DateTime @default(now()) @updatedAt
+    id         Int      @id @default(autoincrement())
+    content    String
+    task_id    Int
+    task       Task     @relation(fields: [task_id], references: [id])
+    user_id    Int
+    user       User     @relation("TaskCommentAuthor", fields: [user_id], references: [id])
+    created_at DateTime @default(now())
+    updated_at DateTime @default(now()) @updatedAt
 }
 
 model TaskFile {
@@ -187,12 +187,12 @@ model TaskFile {
 
 // Task Alerts
 model TaskAlert {
-    id          Int      @id @default(autoincrement())
-    task_id     Int
-    task        Task     @relation("TaskToAlerts", fields: [task_id], references: [id], onDelete: Cascade)
-    alert_date  DateTime
-    created_at  DateTime @default(now())
-    updated_at  DateTime @default(now()) @updatedAt
+    id         Int      @id @default(autoincrement())
+    task_id    Int
+    task       Task     @relation("TaskToAlerts", fields: [task_id], references: [id], onDelete: Cascade)
+    alert_date DateTime
+    created_at DateTime @default(now())
+    updated_at DateTime @default(now()) @updatedAt
 
     @@index([task_id])
 }

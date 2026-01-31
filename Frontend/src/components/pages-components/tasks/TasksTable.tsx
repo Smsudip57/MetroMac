@@ -130,9 +130,8 @@ export default function TasksTable({
       header: "S/L",
       cell: (item: any, index: number) => (
         <span
-          className={`font-medium ${
-            isTaskOverdue(item) ? "text-red-600" : "text-[#747382]"
-          }`}
+          className={`font-medium ${isTaskOverdue(item) ? "text-red-600" : "text-[#747382]"
+            }`}
         >
           {(currentPage - 1) * pageSize + index}
         </span>
@@ -145,9 +144,8 @@ export default function TasksTable({
       sortable: true,
       cell: (item: any) => (
         <TableSingleItem
-          className={`inline-block !min-w-28 ${
-            isTaskOverdue(item) ? "!text-red-600" : ""
-          }`}
+          className={`inline-block !min-w-28 ${isTaskOverdue(item) ? "!text-red-600" : ""
+            }`}
           value={item.title}
           onClick={() => handleView(item)}
         />
@@ -159,10 +157,9 @@ export default function TasksTable({
       cell: (item: any) => (
         <TableSingleItem
           value={item.description || "-"}
-          onClick={() => {}}
-          className={`!line-clamp-2 inline-block !max-w-64 ${
-            isTaskOverdue(item) ? "!text-red-600" : ""
-          }`}
+          onClick={() => { }}
+          className={`!line-clamp-2 inline-block !max-w-64 ${isTaskOverdue(item) ? "!text-red-600" : ""
+            }`}
         />
       ),
     },
@@ -187,6 +184,7 @@ export default function TasksTable({
     {
       key: "assignee",
       header: "Assigned To",
+      sortable: true,
       cell: (item: any) => (
         <TableDoubleHoriZontalItemsWithImage
           img={item.assignee?.profileImage}
@@ -205,6 +203,7 @@ export default function TasksTable({
     {
       key: "reporter",
       header: "Assigned By",
+      sortable: true,
       cell: (item: any) => (
         <TableDoubleHoriZontalItemsWithImage
           img={item.reporter?.profileImage}
@@ -246,9 +245,8 @@ export default function TasksTable({
         const endDate = item.end_date ? formatDate.getDate(item.end_date) : "-";
         return (
           <span
-            className={`text-sm font-semibold ${
-              isTaskOverdue(item) ? "text-red-600" : ""
-            }`}
+            className={`text-sm font-semibold ${isTaskOverdue(item) ? "text-red-600" : ""
+              }`}
             title={isTaskOverdue(item) ? "Overdue" : ""}
           >
             {endDate}
@@ -276,6 +274,47 @@ export default function TasksTable({
       width: 140,
     },
     {
+      key: "submission_date",
+      header: "Submitted Date",
+      cell: (item: any) => {
+        // Show submission date only if status is 'submitted' or 'completed'
+        if (
+          (item.status === "submitted" || item.status === "completed") &&
+          item.submission_date
+        ) {
+          const submissionDate = formatDate.getDate(item.submission_date);
+          return (
+            <span
+              className={`text-sm ${isTaskOverdue(item) ? "text-red-600" : ""}`}
+            >
+              {submissionDate}
+            </span>
+          );
+        }
+        return <span className="text-sm text-text_highlight">-</span>;
+      },
+      width: 140,
+    },
+    {
+      key: "completion_date",
+      header: "Completed Date",
+      cell: (item: any) => {
+        // Show completion date only if status is 'completed'
+        if (item.status === "completed" && item.completion_date) {
+          const completionDate = formatDate.getDate(item.completion_date);
+          return (
+            <span
+              className={`text-sm ${isTaskOverdue(item) ? "text-red-600" : ""}`}
+            >
+              {completionDate}
+            </span>
+          );
+        }
+        return <span className="text-sm text-text_highlight">-</span>;
+      },
+      width: 140,
+    },
+    {
       key: "taskAlerts",
       header: "Alerts",
       cell: (item: any) => {
@@ -291,11 +330,10 @@ export default function TasksTable({
               alertFormMethods.resetField("alert_date");
               setAlertsPopupOpen(true);
             }}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 border rounded-full transition-colors ${
-              alertCount > 0
+            className={`inline-flex items-center gap-2 px-3 py-1.5 border rounded-full transition-colors ${alertCount > 0
                 ? "bg-primary/10 border-primary/20 text-primary hover:bg-primary/15"
                 : "bg-gray-100 border-gray-200 text-gray-400 hover:bg-gray-200"
-            } ${isTaskOverdue(item) ? "!text-red-600" : ""}`}
+              } ${isTaskOverdue(item) ? "!text-red-600" : ""}`}
           >
             {alertCount > 0 && (
               <span className="text-xs font-semibold">{alertCount}</span>
@@ -497,9 +535,8 @@ export default function TasksTable({
   return (
     <>
       <div
-        className={`space-y-6 ${
-          type === "archive" ? "!mt-0 sm+:!mt-0 xl:!mt-6" : "!mt-4 sm+:!mt-6"
-        }`}
+        className={`space-y-6 ${type === "archive" ? "!mt-0 sm+:!mt-0 xl:!mt-6" : "!mt-4 sm+:!mt-6"
+          }`}
       >
         <div className="space-y-6">
           {/* Tasks Table */}
@@ -525,8 +562,8 @@ export default function TasksTable({
                 type === "archive"
                   ? undefined
                   : {
-                      delete: <Archive size={16} />,
-                    }
+                    delete: <Archive size={16} />,
+                  }
               }
               pagination={{
                 enabled: true,
@@ -643,22 +680,20 @@ export default function TasksTable({
                 <button
                   type="button"
                   onClick={() => setAlertMode("manual")}
-                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
-                    alertMode === "manual"
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "manual"
                       ? "bg-primary text-white"
                       : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                  }`}
+                    }`}
                 >
                   Manual Add
                 </button>
                 <button
                   type="button"
                   onClick={() => setAlertMode("auto")}
-                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
-                    alertMode === "auto"
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "auto"
                       ? "bg-primary text-white"
                       : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                  }`}
+                    }`}
                 >
                   Auto-Generate
                 </button>

@@ -9,6 +9,7 @@ import { PDFExporter } from "../../helpers/PDFExporter.js";
 import { PDFTemplates } from "../../templates/pdfTemplates.js";
 import pdfService from "../services/pdfService.js";
 import Papa from "papaparse";
+import { buildTaskFilters } from "./tasks.js";
 
 const prisma = new PrismaClient();
 
@@ -39,8 +40,8 @@ async function exportData(req, res, next) {
       );
     }
 
-    // Fetch data based on module
-    let data = await fetchDataByModule(module, filters);
+    // Fetch data based on module (supports: search, status, assigned_to, assigned_by, reporter_id, fromDate, toDate, sortBy, sortOrder, showArchived, limit)
+    let data = await fetchDataByModule(module, filters, req.user);
 
     // Apply status-based filtering for tasks to ensure report consistency
     // This prevents data inconsistency when tasks status is changed after submission/completion
@@ -272,182 +273,74 @@ async function getImportExportConfig(req, res, next) {
   }
 }
 
-async function fetchDataByModule(module, filters) {
+async function fetchDataByModule(module, filters, user) {
   switch (module?.toLowerCase()) {
     case "task":
+      // Use buildTaskFilters for consistent filtering logic with getTasks endpoint
+      const where = buildTaskFilters(
+        filters,
+        user?.id,
+        user?.role,
+        user?.is_super_user,
+      );
+
+      // Build orderBy dynamically (same as getTasks)
+      const validSortFields = [
+        "title",
+        "status",
+        "start_date",
+        "end_date",
+        "created_at",
+        "updated_at",
+        "assigned_to",
+        "assigned_by",
+      ];
+      const sortBy = filters.sortBy || "created_at";
+      const sortOrder = filters.sortOrder || "desc";
+      const finalSortBy = validSortFields.includes(sortBy)
+        ? sortBy
+        : "created_at";
+      const finalSortOrder = ["asc", "desc"].includes(sortOrder?.toLowerCase())
+        ? sortOrder.toLowerCase()
+        : "desc";
+
+      // Map assigned_by to created_by for sorting
+      const sortField = finalSortBy === "assigned_by" ? "created_by" : finalSortBy;
+
       return await prisma.task.findMany({
         include: {
           assignee: {
             select: {
+              id: true,
               firstName: true,
               lastName: true,
               username: true,
+              email: true,
+              profileImage: true,
             },
           },
           reporter: {
             select: {
+              id: true,
               firstName: true,
               lastName: true,
               username: true,
+              email: true,
+              profileImage: true,
             },
           },
+          taskAlerts: true,
+          comments: { select: { id: true } },
+          attachments: { select: { id: true } },
         },
         take: parseInt(filters.limit) || 1000,
-        where: buildWhereClause(module, filters),
+        where,
+        orderBy: { [sortField]: finalSortOrder },
       });
 
     default:
       throw new Error(`Unsupported module: ${module}`);
   }
-}
-
-function buildWhereClause(module, filters) {
-  let where = {};
-
-  // Common search filter
-  if (filters.search) {
-    where.OR = [{ notes: { contains: filters.search, mode: "insensitive" } }];
-
-    if (module === "task") {
-      where.OR = [
-        { title: { contains: filters.search, mode: "insensitive" } },
-        { description: { contains: filters.search, mode: "insensitive" } },
-      ];
-    }
-  }
-
-  // Task-specific filters
-  if (module === "task") {
-    // Status filter
-    if (
-      filters.status &&
-      ["pending", "active", "on_hold", "completed", "cancelled"].includes(
-        filters.status,
-      )
-    ) {
-      where.status = filters.status;
-    }
-
-    // Assigned to filter
-    if (filters.assigned_to) {
-      where.assigned_to = parseInt(filters.assigned_to);
-    }
-
-    // Reporter filter
-    if (filters.reporter_id) {
-      where.reporter_id = parseInt(filters.reporter_id);
-    }
-
-    // Date range filter (fromDate and toDate)
-    // Tasks must have: start_date >= fromDate AND end_date <= toDate
-    if (filters.fromDate || filters.toDate) {
-      const andConditions = [];
-
-      if (filters.fromDate) {
-        // Parse date string (format: YYYY-MM-DD) and create UTC date at start of day
-        const [year, month, day] = filters.fromDate.split("-");
-        const fromDateObj = new Date(
-          Date.UTC(
-            parseInt(year),
-            parseInt(month) - 1,
-            parseInt(day),
-            0,
-            0,
-            0,
-            0,
-          ),
-        );
-
-        // Task start_date must be >= fromDate
-        andConditions.push({ start_date: { gte: fromDateObj } });
-      }
-
-      if (filters.toDate) {
-        // Parse date string (format: YYYY-MM-DD) and create UTC date at end of day
-        const [year, month, day] = filters.toDate.split("-");
-        const toDateObj = new Date(
-          Date.UTC(
-            parseInt(year),
-            parseInt(month) - 1,
-            parseInt(day),
-            23,
-            59,
-            59,
-            999,
-          ),
-        );
-
-        // Task end_date must be <= toDate
-        andConditions.push({ end_date: { lte: toDateObj } });
-      }
-
-      if (andConditions.length > 0) {
-        const currentConditions = [];
-
-        if (where.OR) {
-          // If OR exists (search), wrap both OR and new conditions in AND
-          currentConditions.push({ OR: where.OR });
-
-          // Add simple filters to AND
-          if (where.status !== undefined) {
-            currentConditions.push({ status: where.status });
-            delete where.status;
-          }
-          if (where.assigned_to !== undefined) {
-            currentConditions.push({ assigned_to: where.assigned_to });
-            delete where.assigned_to;
-          }
-          if (where.reporter_id !== undefined) {
-            currentConditions.push({ reporter_id: where.reporter_id });
-            delete where.reporter_id;
-          }
-
-          // Add date conditions
-          currentConditions.push(...andConditions);
-
-          where = {
-            AND: currentConditions,
-          };
-        } else {
-          // No OR, but preserve simple filters (status, assigned_to, reporter_id)
-          currentConditions.push(...andConditions);
-
-          if (where.status !== undefined) {
-            currentConditions.push({ status: where.status });
-          }
-          if (where.assigned_to !== undefined) {
-            currentConditions.push({ assigned_to: where.assigned_to });
-          }
-          if (where.reporter_id !== undefined) {
-            currentConditions.push({ reporter_id: where.reporter_id });
-          }
-
-          where = {
-            AND: currentConditions,
-          };
-        }
-      }
-    }
-
-    // Archive filter
-    if (filters.showArchived === "true") {
-      if (where.AND) {
-        // If AND structure exists, add is_archived to the conditions
-        where.AND.push({ is_archived: true });
-      } else {
-        where.is_archived = true;
-      }
-    } else {
-      if (where.AND) {
-        // If AND structure exists, add is_archived to the conditions
-        where.AND.push({ is_archived: false });
-      } else {
-        where.is_archived = false;
-      }
-    }
-  }
-
-  return where;
 }
 
 async function exportToCSV(data, module) {

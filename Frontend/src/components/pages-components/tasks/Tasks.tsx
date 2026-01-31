@@ -93,51 +93,51 @@ export default function Tasks({ type = "normal" }: TasksProps) {
 
   const statsData = taskStatsResponse?.data
     ? [
-        {
-          label: "Total",
-          value: taskStatsResponse.data.totalTasks || 0,
-          // percentageChange: taskStatsResponse.data.totalTasksChange || 0,
-          bg: "primary",
-          showIcon: true as const,
-          icon: (
-            <ContainerWrapper className="!p-2 !bg-primary/10 rounded-lg max-h-max">
-              <UsersIcon className=" text-primary/80 hidden sm+:block" />
-              <UsersIcon
-                className=" text-primary/80 sm+:hidden !mt-0"
-                width={16}
-                height={16}
-              />
-            </ContainerWrapper>
-          ),
-        },
-        {
-          label: "In Progress",
-          value: taskStatsResponse.data.activeTasks || 0,
-          // percentageChange: taskStatsResponse.data.activeTasksChange || 0,
-          bg: "success",
-          showPie: true as const,
-          total: taskStatsResponse.data.totalTasks || 0,
-          // showProgress: true as const,
-        },
-        {
-          label: "Completed",
-          value: taskStatsResponse.data.completedTasks || 0,
-          // percentageChange: taskStatsResponse.data.completedTasksChange || 0,
-          bg: "info",
-          showPie: true as const,
-          total: taskStatsResponse.data.totalTasks || 0,
-          // showProgress: true as const,
-        },
-        {
-          label: "Overdue",
-          value: taskStatsResponse.data.overdueTasks || 0,
-          // percentageChange: taskStatsResponse.data.overdueTasksChange || 0,
-          bg: "warning",
-          showPie: true as const,
-          total: taskStatsResponse.data.totalTasks || 0,
-          // showProgress: true as const,
-        },
-      ]
+      {
+        label: "Total",
+        value: taskStatsResponse.data.totalTasks || 0,
+        // percentageChange: taskStatsResponse.data.totalTasksChange || 0,
+        bg: "primary",
+        showIcon: true as const,
+        icon: (
+          <ContainerWrapper className="!p-2 !bg-primary/10 rounded-lg max-h-max">
+            <UsersIcon className=" text-primary/80 hidden sm+:block" />
+            <UsersIcon
+              className=" text-primary/80 sm+:hidden !mt-0"
+              width={16}
+              height={16}
+            />
+          </ContainerWrapper>
+        ),
+      },
+      {
+        label: "Acknowledged",
+        value: taskStatsResponse.data.acknowledgedTasks || 0,
+        // percentageChange: taskStatsResponse.data.acknowledgedTasksChange || 0,
+        bg: "success",
+        showPie: true as const,
+        total: taskStatsResponse.data.totalTasks || 0,
+        // showProgress: true as const,
+      },
+      {
+        label: "Completed",
+        value: taskStatsResponse.data.completedTasks || 0,
+        // percentageChange: taskStatsResponse.data.completedTasksChange || 0,
+        bg: "info",
+        showPie: true as const,
+        total: taskStatsResponse.data.totalTasks || 0,
+        // showProgress: true as const,
+      },
+      {
+        label: "Overdue",
+        value: taskStatsResponse.data.overdueTasks || 0,
+        // percentageChange: taskStatsResponse.data.overdueTasksChange || 0,
+        bg: "warning",
+        showPie: true as const,
+        total: taskStatsResponse.data.totalTasks || 0,
+        // showProgress: true as const,
+      },
+    ]
     : [];
 
   return (
@@ -176,9 +176,8 @@ export default function Tasks({ type = "normal" }: TasksProps) {
               />
             )}
             <div
-              className={`w-46 ${
-                type !== "archive" ? "hidden sm+:block ml-4" : "block"
-              }`}
+              className={`w-46 ${type !== "archive" ? "hidden sm+:block ml-4" : "block"
+                }`}
             >
               {/* Import/Export Toolbar */}
               <ImportExport
@@ -219,9 +218,10 @@ export default function Tasks({ type = "normal" }: TasksProps) {
                   tabs={[
                     { key: "all", label: "All Tasks" },
                     { key: "pending", label: "Pending" },
-                    { key: "in_progress", label: "In Progress" },
+                    { key: "acknowledged", label: "Acknowledged" },
                     { key: "submitted", label: "Submitted" },
                     { key: "on_hold", label: "On Hold" },
+                    { key: "rework", label: "Rework" },
                     { key: "completed", label: "Completed" },
                     { key: "cancelled", label: "Cancelled" },
                   ]}

@@ -17,6 +17,7 @@ class PDFExporter {
       reporter: this.formatUser(task.reporter),
       start_date: this.formatDate(task.start_date),
       end_date: this.formatDate(task.end_date),
+      created_date: this.formatDate(task.created_at),
       submission_date: task.submission_date
         ? this.formatDate(task.submission_date)
         : "N/A",
