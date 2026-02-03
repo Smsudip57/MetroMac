@@ -290,6 +290,8 @@ async function fetchDataByModule(module, filters, user) {
         "status",
         "start_date",
         "end_date",
+        "submission_date",
+        "completion_date",
         "created_at",
         "updated_at",
         "assigned_to",
@@ -306,6 +308,23 @@ async function fetchDataByModule(module, filters, user) {
 
       // Map assigned_by to created_by for sorting
       const sortField = finalSortBy === "assigned_by" ? "created_by" : finalSortBy;
+
+      let orderBy = {};
+
+      // For submission_date and completion_date, handle NULL values properly
+      if (
+        sortField === "submission_date" ||
+        sortField === "completion_date"
+      ) {
+        // PostgreSQL: NULL values go last by default in ASC, first in DESC
+        // We want NULL values to always go last for better UX
+        orderBy = [
+          { [sortField]: { sort: finalSortOrder, nulls: "last" } },
+          { created_at: "desc" }, // Secondary sort by created_at
+        ];
+      } else {
+        orderBy = { [sortField]: finalSortOrder };
+      }
 
       return await prisma.task.findMany({
         include: {
@@ -335,7 +354,7 @@ async function fetchDataByModule(module, filters, user) {
         },
         take: parseInt(filters.limit) || 1000,
         where,
-        orderBy: { [sortField]: finalSortOrder },
+        orderBy,
       });
 
     default:

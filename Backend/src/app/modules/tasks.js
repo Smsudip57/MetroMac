@@ -572,6 +572,8 @@ async function getTasks(req, res, next) {
       "status",
       "start_date",
       "end_date",
+      "submission_date",
+      "completion_date",
       "created_at",
       "updated_at",
       "assigned_to",
@@ -586,6 +588,23 @@ async function getTasks(req, res, next) {
 
     // Map assigned_by to created_by for sorting
     const sortField = finalSortBy === "assigned_by" ? "created_by" : finalSortBy;
+
+    let orderBy = {};
+
+    // For submission_date and completion_date, handle NULL values properly
+    if (
+      sortField === "submission_date" ||
+      sortField === "completion_date"
+    ) {
+      // PostgreSQL: NULL values go last by default in ASC, first in DESC
+      // We want NULL values to always go last for better UX
+      orderBy = [
+        { [sortField]: { sort: finalSortOrder, nulls: "last" } },
+        { created_at: "desc" }, // Secondary sort by created_at
+      ];
+    } else {
+      orderBy = { [sortField]: finalSortOrder };
+    }
 
     const [tasks, totalCount] = await Promise.all([
       prisma.task.findMany({
@@ -617,7 +636,7 @@ async function getTasks(req, res, next) {
           comments: { select: { id: true } },
           attachments: { select: { id: true } },
         },
-        orderBy: { [sortField]: finalSortOrder },
+        orderBy,
       }),
       prisma.task.count({ where }),
     ]);

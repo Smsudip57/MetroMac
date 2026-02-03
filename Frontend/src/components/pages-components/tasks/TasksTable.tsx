@@ -276,6 +276,7 @@ export default function TasksTable({
     {
       key: "submission_date",
       header: "Submitted Date",
+      sortable: true,
       cell: (item: any) => {
         // Show submission date only if status is 'submitted' or 'completed'
         if (
@@ -298,6 +299,7 @@ export default function TasksTable({
     {
       key: "completion_date",
       header: "Completed Date",
+      sortable: true,
       cell: (item: any) => {
         // Show completion date only if status is 'completed'
         if (item.status === "completed" && item.completion_date) {
@@ -331,8 +333,8 @@ export default function TasksTable({
               setAlertsPopupOpen(true);
             }}
             className={`inline-flex items-center gap-2 px-3 py-1.5 border rounded-full transition-colors ${alertCount > 0
-                ? "bg-primary/10 border-primary/20 text-primary hover:bg-primary/15"
-                : "bg-gray-100 border-gray-200 text-gray-400 hover:bg-gray-200"
+              ? "bg-primary/10 border-primary/20 text-primary hover:bg-primary/15"
+              : "bg-gray-100 border-gray-200 text-gray-400 hover:bg-gray-200"
               } ${isTaskOverdue(item) ? "!text-red-600" : ""}`}
           >
             {alertCount > 0 && (
@@ -681,8 +683,8 @@ export default function TasksTable({
                   type="button"
                   onClick={() => setAlertMode("manual")}
                   className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "manual"
-                      ? "bg-primary text-white"
-                      : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                    ? "bg-primary text-white"
+                    : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                     }`}
                 >
                   Manual Add
@@ -691,8 +693,8 @@ export default function TasksTable({
                   type="button"
                   onClick={() => setAlertMode("auto")}
                   className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "auto"
-                      ? "bg-primary text-white"
-                      : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                    ? "bg-primary text-white"
+                    : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                     }`}
                 >
                   Auto-Generate
