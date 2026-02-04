@@ -591,8 +591,16 @@ async function getTasks(req, res, next) {
 
     let orderBy = {};
 
+    // For user-based sorting (assigned_to, assigned_by/created_by), sort by firstName
+    if (finalSortBy === "assigned_to" || finalSortBy === "assigned_by") {
+      const userRelation = finalSortBy === "assigned_to" ? "assignee" : "creator";
+      orderBy = [
+        { [userRelation]: { firstName: finalSortOrder } },
+        { created_at: "desc" }, // Secondary sort by created_at
+      ];
+    }
     // For submission_date and completion_date, handle NULL values properly
-    if (
+    else if (
       sortField === "submission_date" ||
       sortField === "completion_date"
     ) {
@@ -623,6 +631,16 @@ async function getTasks(req, res, next) {
             },
           },
           reporter: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              profileImage: true,
+              email: true,
+            },
+          },
+          creator: {
             select: {
               id: true,
               username: true,
