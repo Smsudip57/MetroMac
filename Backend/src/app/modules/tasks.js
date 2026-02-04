@@ -600,13 +600,11 @@ async function getTasks(req, res, next) {
         { created_at: "desc" }, // Secondary sort by created_at
       ];
     }
-    // For description, sort by first character - put non-NULL values first, then NULLs
+    // For description, sort by first character (same as assigned_to/assigned_by pattern)
     else if (finalSortBy === "description") {
-      // Sort by: non-NULL descriptions first (alphabetically), then NULL descriptions
       orderBy = [
-        { description: { not: null } },  // Non-NULL descriptions come first
-        { description: finalSortOrder }, // Then sort alphabetically
-        { created_at: "desc" },          // Secondary sort by created_at
+        { description: { sort: finalSortOrder, nulls: "last" } },
+        { created_at: "desc" }, // Secondary sort by created_at
       ];
     }
     // For submission_date and completion_date, handle NULL values properly
