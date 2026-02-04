@@ -154,6 +154,7 @@ export default function TasksTable({
     {
       key: "description",
       header: "Description",
+      sortable: true,
       cell: (item: any) => (
         <TableSingleItem
           value={item.description || "-"}

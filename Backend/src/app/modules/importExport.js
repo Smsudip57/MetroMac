@@ -287,6 +287,7 @@ async function fetchDataByModule(module, filters, user) {
       // Build orderBy dynamically (same as getTasks)
       const validSortFields = [
         "title",
+        "description",
         "status",
         "start_date",
         "end_date",
@@ -316,6 +317,13 @@ async function fetchDataByModule(module, filters, user) {
         const userRelation = finalSortBy === "assigned_to" ? "assignee" : "creator";
         orderBy = [
           { [userRelation]: { firstName: finalSortOrder } },
+          { created_at: "desc" }, // Secondary sort by created_at
+        ];
+      }
+      // For description, sort by first character (same as assigned_to/assigned_by pattern)
+      else if (finalSortBy === "description") {
+        orderBy = [
+          { description: finalSortOrder },
           { created_at: "desc" }, // Secondary sort by created_at
         ];
       }

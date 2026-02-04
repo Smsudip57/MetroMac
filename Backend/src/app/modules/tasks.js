@@ -569,6 +569,7 @@ async function getTasks(req, res, next) {
     // Build orderBy dynamically
     const validSortFields = [
       "title",
+      "description",
       "status",
       "start_date",
       "end_date",
@@ -596,6 +597,13 @@ async function getTasks(req, res, next) {
       const userRelation = finalSortBy === "assigned_to" ? "assignee" : "creator";
       orderBy = [
         { [userRelation]: { firstName: finalSortOrder } },
+        { created_at: "desc" }, // Secondary sort by created_at
+      ];
+    }
+    // For description, sort by first character (same as assigned_to/assigned_by pattern)
+    else if (finalSortBy === "description") {
+      orderBy = [
+        { description: finalSortOrder },
         { created_at: "desc" }, // Secondary sort by created_at
       ];
     }
