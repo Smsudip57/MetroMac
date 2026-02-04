@@ -383,16 +383,6 @@ async function fetchDataByModule(module, filters, user) {
         orderBy,
       });
 
-      // Post-process sorting for description field to handle NULLs properly
-      // When sorting description ASC, Postgres puts NULLs first, but we want them last
-      if (finalSortBy === "description" && finalSortOrder === "asc") {
-        const tasksWithDesc = tasks.filter(t => t.description !== null);
-        const tasksWithoutDesc = tasks.filter(t => t.description === null);
-        tasks = [...tasksWithDesc, ...tasksWithoutDesc];
-      }
-
-      return tasks;
-
     default:
       throw new Error(`Unsupported module: ${module}`);
   }

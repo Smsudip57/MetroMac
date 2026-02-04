@@ -601,15 +601,11 @@ async function getTasks(req, res, next) {
       ];
     }
     // For description, sort by first character (same as assigned_to/assigned_by pattern)
-    // Handle NULL values by using _relevance (Prisma's way) - push empty descriptions to end
     else if (finalSortBy === "description") {
       orderBy = [
-        { description: finalSortOrder },
+        { description: { sort: finalSortOrder, nulls: "last" } },
         { created_at: "desc" }, // Secondary sort by created_at
       ];
-      // Note: When description is NULL, PostgreSQL sorts them based on direction:
-      // ASC: NULL values go first (we'll handle this in post-processing)
-      // DESC: NULL values go last (which is what we want)
     }
     // For submission_date and completion_date, handle NULL values properly
     else if (
@@ -670,14 +666,6 @@ async function getTasks(req, res, next) {
       }),
       prisma.task.count({ where }),
     ]);
-
-    // Post-process sorting for description field to handle NULLs properly
-    // When sorting description ASC, Postgres puts NULLs first, but we want them last
-    if (finalSortBy === "description" && finalSortOrder === "asc") {
-      const tasksWithDesc = tasks.filter(t => t.description !== null);
-      const tasksWithoutDesc = tasks.filter(t => t.description === null);
-      tasks = [...tasksWithDesc, ...tasksWithoutDesc];
-    }
 
     res.json({
       success: true,
