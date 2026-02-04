@@ -323,7 +323,7 @@ async function fetchDataByModule(module, filters, user) {
       // For description, sort by first character (same as assigned_to/assigned_by pattern)
       else if (finalSortBy === "description") {
         orderBy = [
-          { description: finalSortOrder },
+          { description: { sort: finalSortOrder, nulls: "last" } },
           { created_at: "desc" }, // Secondary sort by created_at
         ];
       }
