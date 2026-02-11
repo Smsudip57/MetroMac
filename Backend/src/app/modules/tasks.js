@@ -274,7 +274,7 @@ async function createTask(req, res, next) {
           task.reporter.username;
         const assigneeName = task.assignee
           ? `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
-          task.assignee.username
+            task.assignee.username
           : "Unassigned";
 
         const emailHtml = taskReporterSupervisionTemplate(
@@ -560,7 +560,16 @@ async function getTasks(req, res, next) {
 
     // Use buildTaskFilters to get consistent filtering logic
     const where = buildTaskFilters(
-      { search, status, assigned_to, assigned_by, reporter_id, fromDate, toDate, showArchived },
+      {
+        search,
+        status,
+        assigned_to,
+        assigned_by,
+        reporter_id,
+        fromDate,
+        toDate,
+        showArchived,
+      },
       req.user.id,
       req.user?.role,
       req.user?.is_super_user,
@@ -579,6 +588,8 @@ async function getTasks(req, res, next) {
       "updated_at",
       "assigned_to",
       "assigned_by",
+      "assignee",
+      "reporter",
     ];
     const finalSortBy = validSortFields.includes(sortBy)
       ? sortBy
@@ -588,13 +599,22 @@ async function getTasks(req, res, next) {
       : "desc";
 
     // Map assigned_by to created_by for sorting
-    const sortField = finalSortBy === "assigned_by" ? "created_by" : finalSortBy;
+    const sortField =
+      finalSortBy === "assigned_by" ? "created_by" : finalSortBy;
 
     let orderBy = {};
 
-    // For user-based sorting (assigned_to, assigned_by/reporter), sort by firstName
-    if (finalSortBy === "assigned_to" || finalSortBy === "assigned_by") {
-      const userRelation = finalSortBy === "assigned_to" ? "assignee" : "reporter";
+    // For user-based sorting (assigned_to/assignee, assigned_by/reporter), sort by firstName
+    if (
+      finalSortBy === "assigned_to" ||
+      finalSortBy === "assignee" ||
+      finalSortBy === "assigned_by" ||
+      finalSortBy === "reporter"
+    ) {
+      let userRelation = "assignee";
+      if (finalSortBy === "assigned_by" || finalSortBy === "reporter") {
+        userRelation = "reporter";
+      }
       // Prisma requires nested relation sorting to be in this format
       orderBy = {
         [userRelation]: { firstName: finalSortOrder },
@@ -987,18 +1007,20 @@ async function updateTask(req, res, next) {
             .map((a) => new Date(a.alert_date).getTime())
             .sort((a, b) => a - b),
         ) !==
-        JSON.stringify(
-          currentTask.taskAlerts
-            .map((a) => new Date(a.alert_date).getTime())
-            .sort((a, b) => a - b),
-        ));
+          JSON.stringify(
+            currentTask.taskAlerts
+              .map((a) => new Date(a.alert_date).getTime())
+              .sort((a, b) => a - b),
+          ));
 
     // if assignee trys to update more than status and he didn't create that task, block it, but allow if he assigned that task to himself
     if (
       !req.user.is_super_user &&
       ((isTryingToUpdateStatus &&
         isAssigneeTryingToUpdateThatHeDidntCreate &&
-        (Object.keys(changes).length > 1 || alertsModified || !isStatusSubmittedorAcknowledged)) ||
+        (Object.keys(changes).length > 1 ||
+          alertsModified ||
+          !isStatusSubmittedorAcknowledged)) ||
         (!isTryingToUpdateStatus &&
           isAssigneeTryingToUpdateThatHeDidntCreate &&
           (Object.keys(changes).length > 0 || alertsModified)))
@@ -1278,7 +1300,7 @@ async function updateTask(req, res, next) {
           newReporter.username;
         const assigneeName = task.assignee
           ? `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
-          task.assignee.username
+            task.assignee.username
           : "Unassigned";
 
         const emailHtml = taskReporterSupervisionTemplate(
@@ -1396,8 +1418,9 @@ async function updateTask(req, res, next) {
       try {
         await PushNotificationService.sendToUser(task.reporter_id, {
           title: "Task Submitted for Review",
-          body: `${task.assignee?.firstName || "Someone"
-            } has submitted the task "${task.title}" for approval`,
+          body: `${
+            task.assignee?.firstName || "Someone"
+          } has submitted the task "${task.title}" for approval`,
           icon: "/icons/notification-icon.png",
           badge: "/icons/notification-badge.png",
           data: {
@@ -1554,8 +1577,9 @@ async function updateTask(req, res, next) {
       try {
         await PushNotificationService.sendToUser(task.reporter_id, {
           title: "Task Acknowledged",
-          body: `${task.assignee?.firstName || "Someone"
-            } has acknowledged "${task.title}"`,
+          body: `${task.assignee?.firstName || "Someone"} has acknowledged "${
+            task.title
+          }"`,
           icon: "/icons/notification-icon.png",
           badge: "/icons/notification-badge.png",
           data: {
@@ -1745,7 +1769,8 @@ async function addTaskAlert(req, res, next) {
     if (alertDate < task.start_date) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        `Alert date must be equal to or after task start date (${task.start_date.toISOString().split("T")[0]
+        `Alert date must be equal to or after task start date (${
+          task.start_date.toISOString().split("T")[0]
         })`,
       );
     }

@@ -297,6 +297,8 @@ async function fetchDataByModule(module, filters, user) {
         "updated_at",
         "assigned_to",
         "assigned_by",
+        "assignee",
+        "reporter",
       ];
       const sortBy = filters.sortBy || "created_at";
       const sortOrder = filters.sortOrder || "desc";
@@ -313,10 +315,17 @@ async function fetchDataByModule(module, filters, user) {
 
       let orderBy = {};
 
-      // For user-based sorting (assigned_to, assigned_by/reporter), sort by firstName
-      if (finalSortBy === "assigned_to" || finalSortBy === "assigned_by") {
-        const userRelation =
-          finalSortBy === "assigned_to" ? "assignee" : "reporter";
+      // For user-based sorting (assigned_to/assignee, assigned_by/reporter), sort by firstName
+      if (
+        finalSortBy === "assigned_to" ||
+        finalSortBy === "assignee" ||
+        finalSortBy === "assigned_by" ||
+        finalSortBy === "reporter"
+      ) {
+        let userRelation = "assignee";
+        if (finalSortBy === "assigned_by" || finalSortBy === "reporter") {
+          userRelation = "reporter";
+        }
         orderBy = {
           [userRelation]: { firstName: finalSortOrder },
         };
