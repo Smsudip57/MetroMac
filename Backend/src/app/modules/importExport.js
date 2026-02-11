@@ -316,6 +316,7 @@ async function fetchDataByModule(module, filters, user) {
       let orderBy = {};
 
       // For user-based sorting (assigned_to/assignee, assigned_by/reporter), sort by firstName
+      // NULL values always go last for better UX
       if (
         finalSortBy === "assigned_to" ||
         finalSortBy === "assignee" ||
@@ -327,7 +328,7 @@ async function fetchDataByModule(module, filters, user) {
           userRelation = "reporter";
         }
         orderBy = {
-          [userRelation]: { firstName: finalSortOrder },
+          [userRelation]: { firstName: finalSortOrder, nulls: "last" },
         };
       }
       // For description, sort by first character (same as assigned_to/assigned_by pattern)
