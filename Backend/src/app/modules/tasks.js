@@ -592,13 +592,13 @@ async function getTasks(req, res, next) {
 
     let orderBy = {};
 
-    // For user-based sorting (assigned_to, assigned_by/created_by), sort by firstName
+    // For user-based sorting (assigned_to, assigned_by/reporter), sort by firstName
     if (finalSortBy === "assigned_to" || finalSortBy === "assigned_by") {
-      const userRelation = finalSortBy === "assigned_to" ? "assignee" : "creator";
-      orderBy = [
-        { [userRelation]: { firstName: finalSortOrder } },
-        { created_at: "desc" }, // Secondary sort by created_at
-      ];
+      const userRelation = finalSortBy === "assigned_to" ? "assignee" : "reporter";
+      // Prisma requires nested relation sorting to be in this format
+      orderBy = {
+        [userRelation]: { firstName: finalSortOrder },
+      };
     }
     // For description, sort by first character (same as assigned_to/assigned_by pattern)
     else if (finalSortBy === "description") {
