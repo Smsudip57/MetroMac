@@ -616,9 +616,8 @@ async function getTasks(req, res, next) {
         userRelation = "reporter";
       }
       // Prisma requires nested relation sorting to be in this format
-      // NULL values always go last for better UX
       orderBy = {
-        [userRelation]: { firstName: finalSortOrder, nulls: "last" },
+        [userRelation]: { firstName: finalSortOrder },
       };
     }
     // For description, sort by first character (same as assigned_to/assigned_by pattern)
