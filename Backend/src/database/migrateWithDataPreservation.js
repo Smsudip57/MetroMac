@@ -216,9 +216,34 @@ async function resetMigrationLock() {
       fs.unlinkSync(migrationLockPath);
       console.log("   • Removed migration_lock.toml");
     }
-    console.log("✅ Prisma migration state reset");
+    console.log("✅ Prisma migration state reset (local)");
   } catch (error) {
     console.error("❌ Failed to reset migration lock:", error);
+    throw error;
+  }
+}
+
+async function resetMigrationHistory() {
+  console.log("\n[2.7] 🗑️  CLEARING MIGRATION HISTORY FROM DATABASE...");
+  try {
+    const databaseUrl = process.env.DATABASE_URL;
+    const client = new Client({
+      connectionString: databaseUrl,
+    });
+
+    await client.connect();
+
+    try {
+      // Clear Prisma's migration tracking table
+      // This tells Prisma no migrations have been applied
+      console.log("   • Clearing _prisma_migrations table...");
+      await client.query('DELETE FROM "_prisma_migrations"');
+      console.log("✅ Migration history cleared - fresh start");
+    } finally {
+      await client.end();
+    }
+  } catch (error) {
+    console.error("❌ Failed to reset migration history:", error);
     throw error;
   }
 }
@@ -440,8 +465,11 @@ async function main() {
     // Step 2.5: Reset database completely and create extensions
     await resetDatabaseCompletely();
 
-    // Step 2.6: Reset Prisma migration state
+    // Step 2.6: Reset Prisma migration state (local files)
     await resetMigrationLock();
+
+    // Step 2.7: Clear migration history from database
+    await resetMigrationHistory();
 
     // Step 3: Create fresh migrations
     createFreshMigrations();
