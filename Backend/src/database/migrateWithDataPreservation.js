@@ -234,11 +234,10 @@ async function resetMigrationHistory() {
     await client.connect();
 
     try {
-      // Clear Prisma's migration tracking table
-      // This tells Prisma no migrations have been applied
-      console.log("   • Clearing _prisma_migrations table...");
-      await client.query('DELETE FROM "_prisma_migrations"');
-      console.log("✅ Migration history cleared - fresh start");
+      // Clear Prisma's migration tracking table (if it exists)
+      // Since we dropped the schema, this table is already gone
+      console.log("   • Migration history already cleared with schema reset");
+      console.log("✅ Fresh start ready for new migration");
     } finally {
       await client.end();
     }
