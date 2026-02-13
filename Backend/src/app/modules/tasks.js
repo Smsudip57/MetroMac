@@ -687,9 +687,63 @@ async function getTasks(req, res, next) {
       prisma.task.count({ where }),
     ]);
 
+    // Check if end_date has passed and update status to pending if needed
+    const now = new Date();
+    const updatedTasks = await Promise.all(
+      tasks.map(async (task) => {
+        // If end_date has passed and task is not completed or cancelled, update to pending
+        if (
+          task.end_date < now &&
+          task.status !== "completed" &&
+          task.status !== "cancelled"
+        ) {
+          return await prisma.task.update({
+            where: { id: task.id },
+            data: { status: "pending" },
+            include: {
+              assignee: {
+                select: {
+                  id: true,
+                  username: true,
+                  firstName: true,
+                  lastName: true,
+                  profileImage: true,
+                  email: true,
+                },
+              },
+              reporter: {
+                select: {
+                  id: true,
+                  username: true,
+                  firstName: true,
+                  lastName: true,
+                  profileImage: true,
+                  email: true,
+                },
+              },
+              creator: {
+                select: {
+                  id: true,
+                  username: true,
+                  firstName: true,
+                  lastName: true,
+                  profileImage: true,
+                  email: true,
+                },
+              },
+              taskAlerts: true,
+              comments: { select: { id: true } },
+              attachments: { select: { id: true } },
+            },
+          });
+        }
+        return task;
+      }),
+    );
+
     res.json({
       success: true,
-      data: tasks,
+      data: updatedTasks,
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(totalCount / parseInt(limit)),
