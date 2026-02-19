@@ -197,8 +197,6 @@ async function createTask(req, res, next) {
       taskData.completion_date = now;
     }
 
-    console.log(taskData)
-
     const task = await prisma.task.create({
       data: {
         ...taskData,
