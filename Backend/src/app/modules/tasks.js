@@ -276,7 +276,7 @@ async function createTask(req, res, next) {
           task.reporter.username;
         const assigneeName = task.assignee
           ? `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
-            task.assignee.username
+          task.assignee.username
           : "Unassigned";
 
         const emailHtml = taskReporterSupervisionTemplate(
@@ -1063,11 +1063,11 @@ async function updateTask(req, res, next) {
             .map((a) => new Date(a.alert_date).getTime())
             .sort((a, b) => a - b),
         ) !==
-          JSON.stringify(
-            currentTask.taskAlerts
-              .map((a) => new Date(a.alert_date).getTime())
-              .sort((a, b) => a - b),
-          ));
+        JSON.stringify(
+          currentTask.taskAlerts
+            .map((a) => new Date(a.alert_date).getTime())
+            .sort((a, b) => a - b),
+        ));
 
     // if assignee trys to update more than status and he didn't create that task, block it, but allow if he assigned that task to himself
     if (
@@ -1091,12 +1091,13 @@ async function updateTask(req, res, next) {
     let isArchiving = false;
     if (req.body.is_archived !== undefined && req.body.is_archived === true) {
       const canArchive =
-        req?.user?.is_super_user || req.user?.role?.toLowerCase() === "manager";
+        req?.user?.is_super_user || req.user?.role?.toLowerCase() === "manager" ||
+        req.user?.id === currentTask.created_by || req.user?.id === currentTask.reporter_id;
 
       if (!canArchive) {
         throw new ApiError(
           StatusCodes.FORBIDDEN,
-          "Only the reporter, task creator, or super user can archive tasks",
+          "Only the reporter or task creator can archive tasks",
         );
       }
       isArchiving = true;
@@ -1356,7 +1357,7 @@ async function updateTask(req, res, next) {
           newReporter.username;
         const assigneeName = task.assignee
           ? `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
-            task.assignee.username
+          task.assignee.username
           : "Unassigned";
 
         const emailHtml = taskReporterSupervisionTemplate(
@@ -1474,9 +1475,8 @@ async function updateTask(req, res, next) {
       try {
         await PushNotificationService.sendToUser(task.reporter_id, {
           title: "Task Submitted for Review",
-          body: `${
-            task.assignee?.firstName || "Someone"
-          } has submitted the task "${task.title}" for approval`,
+          body: `${task.assignee?.firstName || "Someone"
+            } has submitted the task "${task.title}" for approval`,
           icon: "/icons/notification-icon.png",
           badge: "/icons/notification-badge.png",
           data: {
@@ -1633,9 +1633,8 @@ async function updateTask(req, res, next) {
       try {
         await PushNotificationService.sendToUser(task.reporter_id, {
           title: "Task Acknowledged",
-          body: `${task.assignee?.firstName || "Someone"} has acknowledged "${
-            task.title
-          }"`,
+          body: `${task.assignee?.firstName || "Someone"} has acknowledged "${task.title
+            }"`,
           icon: "/icons/notification-icon.png",
           badge: "/icons/notification-badge.png",
           data: {
@@ -1825,8 +1824,7 @@ async function addTaskAlert(req, res, next) {
     if (alertDate < task.start_date) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        `Alert date must be equal to or after task start date (${
-          task.start_date.toISOString().split("T")[0]
+        `Alert date must be equal to or after task start date (${task.start_date.toISOString().split("T")[0]
         })`,
       );
     }
