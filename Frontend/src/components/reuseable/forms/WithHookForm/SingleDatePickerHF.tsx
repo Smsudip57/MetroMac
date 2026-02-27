@@ -85,7 +85,7 @@ const SingleDatePickerHF: React.FC<SingleDatePickerHFProps> = ({
         // Convert string date to Date object for SingleDatePicker
         const dateValue = field.value
           ? localDateWithoutTime
-            ? convertUTCToLocalDate(field.value)
+            ? new Date(field.value)
             : new Date(field.value)
           : null;
 

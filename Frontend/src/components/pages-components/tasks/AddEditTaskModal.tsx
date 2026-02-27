@@ -117,10 +117,10 @@ export default function AddEditTaskModal({
             }
             : null,
         start_date: editingTask.start_date
-          ? new Date(editingTask.start_date).toISOString().split("T")[0]
+          ? new Date(editingTask.start_date).toISOString()
           : "",
         end_date: editingTask.end_date
-          ? new Date(editingTask.end_date).toISOString().split("T")[0]
+          ? new Date(editingTask.end_date).toISOString()
           : "",
       }
       : {
