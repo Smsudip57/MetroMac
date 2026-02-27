@@ -43,11 +43,23 @@ const SingleDatePickerHF: React.FC<SingleDatePickerHFProps> = ({
   const convertUTCToLocalDate = (isoString: string): Date | null => {
     if (!isoString) return null;
 
-    // Parse the ISO UTC string
-    const utcDate = new Date(isoString);
+    let utcDate: Date;
 
-    // Extract local date components using the same method as utils.formatDate
-    // This automatically handles timezone conversion
+    // Check if it's a full ISO string with time (e.g., "2026-02-26T18:00:00.000Z")
+    // or just a date string (e.g., "2026-02-26")
+    if (isoString.includes('T')) {
+      // Full ISO UTC string - parse as-is
+      // "2026-02-26T18:00:00.000Z" → Feb 26 18:00 UTC
+      utcDate = new Date(isoString);
+    } else {
+      // Date-only string - treat as UTC midnight
+      // "2026-02-26" → treat as Feb 26 00:00 UTC (NOT local!)
+      // Add "T00:00:00Z" to make it explicit UTC
+      utcDate = new Date(isoString + 'T00:00:00Z');
+    }
+
+    // Extract LOCAL date components
+    // These methods read the date in the user's LOCAL timezone
     const day = utcDate.getDate();              // Local date
     const month = utcDate.getMonth();           // Local month
     const year = utcDate.getFullYear();         // Local year
@@ -55,11 +67,11 @@ const SingleDatePickerHF: React.FC<SingleDatePickerHFProps> = ({
     // Recreate Date object at local midnight with correct local date
     const localDate = new Date(year, month, day, 0, 0, 0);
 
-    // Debug: Compare with utils formatDate output
-    console.log('Converted local date:', {
-      dateString: isoString,
-      extracted: { day, month: month + 1, year },
-      localDate: localDate.toString(),
+    console.log('Converted UTC to Local Date:', {
+      input: isoString,
+      utcDate: utcDate.toISOString(),
+      localExtracted: { day, month: month + 1, year },
+      result: localDate.toString(),
     });
 
     return localDate;
