@@ -42,18 +42,9 @@ const SingleDatePickerHF: React.FC<SingleDatePickerHFProps> = ({
   // Helper function to convert ISO UTC string to local date for display
   const convertUTCToLocalDate = (isoString: string): Date | null => {
     if (!isoString) return null;
-
-    // Parse the ISO UTC string
-    const utcDate = new Date(isoString);
-
-    // Extract the LOCAL date components (not UTC!)
-    // This accounts for the timezone offset
-    const year = utcDate.getFullYear();
-    const month = utcDate.getMonth();
-    const day = utcDate.getDate();
-    const formattedate = new Date(year, month, day, 12, 0, 0);
-    console.log(formattedate)
-    return formattedate;
+    const localDate = new Date(isoString);
+    console.log(localDate);
+    return localDate;
   };
 
   return (
