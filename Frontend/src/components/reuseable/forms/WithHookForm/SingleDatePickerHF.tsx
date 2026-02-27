@@ -19,6 +19,7 @@ interface SingleDatePickerHFProps {
   labelClassName?: string;
   disabled?: boolean;
   withTime?: boolean;
+  localDateWithoutTime?: boolean; // When true, converts local date to ISO string (e.g., "2026-02-27" from Dubai → "2026-02-26T20:00:00Z")
 }
 
 const SingleDatePickerHF: React.FC<SingleDatePickerHFProps> = ({
@@ -34,6 +35,7 @@ const SingleDatePickerHF: React.FC<SingleDatePickerHFProps> = ({
   labelClassName,
   disabled = false,
   withTime = false,
+  localDateWithoutTime = false,
 }) => {
   const { control } = useFormContext();
 
@@ -48,17 +50,43 @@ const SingleDatePickerHF: React.FC<SingleDatePickerHFProps> = ({
         // Handle onChange to convert Date back to string format for form
         const handleDateChange = (date: Date | null) => {
           if (date) {
-            // Convert to UTC for server/database (stores consistent time regardless of timezone)
-            const year = date.getUTCFullYear();
-            const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-            const day = String(date.getUTCDate()).padStart(2, "0");
-            const hours = String(date.getUTCHours()).padStart(2, "0");
-            const minutes = String(date.getUTCMinutes()).padStart(2, "0");
-            const seconds = String(date.getUTCSeconds()).padStart(2, "0");
+            let formattedDate: string;
 
-            const formattedDate = withTime
-              ? `${year}-${month}-${day}T${hours}:${minutes}:${seconds}Z` // ISO 8601 UTC format
-              : `${year}-${month}-${day}`; // YYYY-MM-DD
+            if (localDateWithoutTime) {
+              // When localDateWithoutTime is true:
+              // Treat the selected date as a local date (e.g., "2026-02-27" from Dubai)
+              // and convert it to ISO format in UTC
+              // Example: User in Dubai selects "2026-02-27"
+              // → This is 2026-02-27 00:00:00 Dubai time (UTC+4)
+              // → Converts to ISO: 2026-02-26T20:00:00Z (UTC)
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, "0");
+              const day = String(date.getDate()).padStart(2, "0");
+              const localDateString = `${year}-${month}-${day}T00:00:00`;
+              formattedDate = new Date(localDateString).toISOString();
+            } else {
+              // Helper to format date components with padding
+              const getDateParts = (useUTC: boolean) => {
+                const y = useUTC ? date.getUTCFullYear() : date.getFullYear();
+                const m = String((useUTC ? date.getUTCMonth() : date.getMonth()) + 1).padStart(2, "0");
+                const d = String(useUTC ? date.getUTCDate() : date.getDate()).padStart(2, "0");
+                return { y, m, d };
+              };
+
+              const { y, m, d } = getDateParts(true);
+
+              if (withTime) {
+                // When withTime is true, use UTC values
+                const h = String(date.getUTCHours()).padStart(2, "0");
+                const min = String(date.getUTCMinutes()).padStart(2, "0");
+                const s = String(date.getUTCSeconds()).padStart(2, "0");
+                formattedDate = `${y}-${m}-${d}T${h}:${min}:${s}Z`;
+              } else {
+                // When both are false, use UTC date values (YYYY-MM-DD format)
+                formattedDate = `${y}-${m}-${d}`;
+              }
+            }
+
             field.onChange(formattedDate);
           } else {
             field.onChange(null);
@@ -78,7 +106,7 @@ const SingleDatePickerHF: React.FC<SingleDatePickerHFProps> = ({
             triggerClassName={
               triggerClassName ||
               fieldContainerStyles +
-                "  flex items-center !py-0 justify-between cursor-pointer"
+              "  flex items-center !py-0 justify-between cursor-pointer"
             }
             contentClassName={
               contentClassName ||

@@ -642,8 +642,8 @@ export default function AddEditTaskModal({
                 </div>
                 <div
                   className={` flex flex-col gap-4 ${isMobile
-                      ? "!max-h-[calc(100vh-140px)]"
-                      : "!max-h-[calc(80vh-160px)]"
+                    ? "!max-h-[calc(100vh-140px)]"
+                    : "!max-h-[calc(80vh-160px)]"
                     } overflow-y-auto pr-6 pt-4`}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -672,6 +672,7 @@ export default function AddEditTaskModal({
                       placeholder="Select start date"
                       required
                       disabled={isLoading}
+                      localDateWithoutTime={true}
                     />
                     <SingleDatePickerHF
                       name="end_date"
@@ -679,6 +680,7 @@ export default function AddEditTaskModal({
                       placeholder="Select end date"
                       required
                       disabled={isLoading}
+                      localDateWithoutTime={true}
                     />
                     <SearchSelectHF
                       name="status"
@@ -780,8 +782,8 @@ export default function AddEditTaskModal({
                           type="button"
                           onClick={() => setAlertMode("manual")}
                           className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "manual"
-                              ? "bg-primary text-white"
-                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                            ? "bg-primary text-white"
+                            : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                             }`}
                         >
                           Manual Add
@@ -790,8 +792,8 @@ export default function AddEditTaskModal({
                           type="button"
                           onClick={() => setAlertMode("auto")}
                           className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "auto"
-                              ? "bg-primary text-white"
-                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                            ? "bg-primary text-white"
+                            : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                             }`}
                         >
                           Auto-Generate
@@ -906,8 +908,8 @@ export default function AddEditTaskModal({
                 </div>
                 <div
                   className={` flex flex-col gap-4 ${isMobile
-                      ? "!max-h-[calc(100vh-140px)]"
-                      : "!max-h-[calc(80vh-160px)]"
+                    ? "!max-h-[calc(100vh-140px)]"
+                    : "!max-h-[calc(80vh-160px)]"
                     } overflow-y-auto pr-6 pt-4`}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -936,6 +938,7 @@ export default function AddEditTaskModal({
                       placeholder="Select start date"
                       required
                       disabled={isLoading}
+                      localDateWithoutTime={true}
                     />
                     <SingleDatePickerHF
                       name="end_date"
@@ -943,6 +946,7 @@ export default function AddEditTaskModal({
                       placeholder="Select end date"
                       required
                       disabled={isLoading}
+                      localDateWithoutTime={true}
                     />
                     <SearchSelectHF
                       name="status"
@@ -1044,8 +1048,8 @@ export default function AddEditTaskModal({
                           type="button"
                           onClick={() => setAlertMode("manual")}
                           className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "manual"
-                              ? "bg-primary text-white"
-                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                            ? "bg-primary text-white"
+                            : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                             }`}
                         >
                           Manual Add
@@ -1054,8 +1058,8 @@ export default function AddEditTaskModal({
                           type="button"
                           onClick={() => setAlertMode("auto")}
                           className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "auto"
-                              ? "bg-primary text-white"
-                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                            ? "bg-primary text-white"
+                            : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                             }`}
                         >
                           Auto-Generate

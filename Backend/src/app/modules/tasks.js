@@ -359,7 +359,8 @@ async function getTaskStats(req, res, next) {
           where: {
             ...baseWhere,
             status: { not: "completed" },
-            end_date: { lt: new Date() },
+            // Convert current time to UTC to match database timezone
+            end_date: { lt: new Date(new Date(new Date().toISOString()).getTime() - 24 * 60 * 60 * 1000) },
           },
         }),
       ]);
@@ -690,12 +691,17 @@ async function getTasks(req, res, next) {
     ]);
 
     // Check if end_date has passed and update status to pending if needed
-    const now = new Date();
+    // Convert to UTC to match database timezone
+    const now = new Date(new Date().toISOString());
     const updatedTasks = await Promise.all(
       tasks.map(async (task) => {
-        // If end_date has passed and task is not completed or cancelled, update to pending
+        // Add 24 hours to end_date so task is overdue only AFTER the due date ends
+        const endDatePlusOneDay = new Date(task.end_date);
+        endDatePlusOneDay.setDate(endDatePlusOneDay.getDate() + 1);
+
+        // If end_date + 24 hours has passed and task is not completed or cancelled, update to pending
         if (
-          task.end_date < now &&
+          endDatePlusOneDay < now &&
           task.status !== "completed" &&
           task.status !== "cancelled"
         ) {

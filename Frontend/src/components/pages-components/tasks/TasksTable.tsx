@@ -109,12 +109,16 @@ export default function TasksTable({
   const [deleteTaskAlert] = useDeleteTaskAlertMutation?.() || [];
 
   // Check if task is overdue (but not if it's completed)
+  // Task is overdue AFTER the due date has fully passed (i.e., after 24 hours from end_date)
   const isTaskOverdue = (task: any) => {
-    return (
-      task.status !== "completed" &&
-      task.end_date &&
-      new Date(task.end_date) < new Date(new Date().setHours(0, 0, 0, 0))
-    );
+    if (task.status === "completed" || !task.end_date) return false;
+
+    const endDatePlusOneDay = new Date(task.end_date);
+    endDatePlusOneDay.setDate(endDatePlusOneDay.getDate() + 1);
+
+    // Convert current time to UTC to match database timezone
+    const now = new Date(new Date().toISOString());
+    return endDatePlusOneDay < now;
   };
 
   // Handle sorting
