@@ -268,6 +268,62 @@ function createFreshMigrations() {
   }
 }
 
+async function resetAutoIncrement() {
+  console.log("\n[4.5] 🔄 RESETTING AUTOINCREMENT SEQUENCES...");
+  try {
+    const databaseUrl = process.env.DATABASE_URL;
+    const client = new Client({
+      connectionString: databaseUrl,
+    });
+
+    await client.connect();
+
+    try {
+      // Get all tables with id columns
+      const tablesResult = await client.query(`
+        SELECT tablename FROM pg_tables 
+        WHERE schemaname = 'public'
+        ORDER BY tablename;
+      `);
+
+      const tables = tablesResult.rows;
+      console.log(`   • Found ${tables.length} tables to reset`);
+
+      for (const { tablename } of tables) {
+        try {
+          const resetQuery = `
+            SELECT setval(
+              pg_get_serial_sequence('"${tablename}"', 'id'), 
+              coalesce(max(id)+1, 1), 
+              false
+            ) 
+            FROM "${tablename}";
+          `;
+
+          const result = await client.query(resetQuery);
+          if (result.rows[0] && result.rows[0].setval) {
+            console.log(
+              `   • Reset ${tablename}: sequence set to ${result.rows[0].setval}`,
+            );
+          }
+        } catch (error) {
+          // Skip tables without id sequence
+          if (!error.message.includes("undefined")) {
+            console.log(`   • Skipped ${tablename}: no id sequence`);
+          }
+        }
+      }
+
+      console.log("✅ All autoincrement sequences reset successfully");
+    } finally {
+      await client.end();
+    }
+  } catch (error) {
+    console.error("❌ Failed to reset autoincrement sequences:", error);
+    throw error;
+  }
+}
+
 async function reimportData(data) {
   console.log("\n[4] 📥 RE-IMPORTING DATA...");
   try {
@@ -475,6 +531,9 @@ async function main() {
 
     // Step 4: Re-import data
     await reimportData(exportedData);
+
+    // Step 4.5: Reset autoincrement sequences
+    await resetAutoIncrement();
 
     console.log("\n========================================");
     console.log("✅ MIGRATION COMPLETED SUCCESSFULLY!");
