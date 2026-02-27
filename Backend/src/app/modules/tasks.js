@@ -184,15 +184,15 @@ async function createTask(req, res, next) {
       status: status || "pending",
     };
 
-    // Set submission_date if status is submitted
+    // Set submission_date if status is submitted (as ISO UTC)
     if (status === "submitted") {
-      taskData.submission_date = new Date();
+      taskData.submission_date = new Date(new Date().toISOString());
     }
 
     // If task is created with completed status, set both submission_date and completion_date to now
-    // This handles the case where the creator/issuer directly marks task as completed
+    // This handles the case where the creator/issuer directly marks task as completed (as ISO UTC)
     if (status === "completed") {
-      const now = new Date();
+      const now = new Date(new Date().toISOString());
       taskData.submission_date = now;
       taskData.completion_date = now;
     }
@@ -1120,15 +1120,15 @@ async function updateTask(req, res, next) {
     if (end_date !== undefined) data.end_date = new Date(end_date);
     if (status !== undefined) {
       data.status = status;
-      // Set submission_date when status changes to submitted
+      // Set submission_date when status changes to submitted (as ISO UTC)
       if (status === "submitted" && currentTask.status !== "submitted") {
-        data.submission_date = new Date();
+        data.submission_date = new Date(new Date().toISOString());
         data.completion_date = null;
       }
-      // Set completion_date when status changes to completed
+      // Set completion_date when status changes to completed (as ISO UTC)
       if (status === "completed" && currentTask.status !== "completed") {
-        data.submission_date = new Date();
-        data.completion_date = new Date();
+        data.submission_date = new Date(new Date().toISOString());
+        data.completion_date = new Date(new Date().toISOString());
       }
       // If status is on_hold, capture hold details
       if (status === "on_hold") {

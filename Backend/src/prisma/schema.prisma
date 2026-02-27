@@ -119,12 +119,12 @@ model Task {
     reporter        User       @relation("TaskReporter", fields: [reporter_id], references: [id])
     created_by      Int
     creator         User       @relation("TaskCreator", fields: [created_by], references: [id])
-    start_date      DateTime   @db.Date
-    end_date        DateTime   @db.Date
+    start_date      DateTime // Stores date with time (UTC)
+    end_date        DateTime // Stores date with time (UTC)
     status          TaskStatus @default(pending)
     hold_reason     String? // Reason for on_hold status
-    submission_date DateTime?  @db.Date // Date when task was submitted
-    completion_date DateTime?  @db.Date // Date when task was completed
+    submission_date DateTime? // Date when task was submitted (UTC)
+    completion_date DateTime? // Date when task was completed (UTC)
     is_archived     Boolean    @default(false)
     created_at      DateTime   @default(now())
     updated_at      DateTime   @default(now()) @updatedAt
