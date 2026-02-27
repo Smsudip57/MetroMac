@@ -51,10 +51,9 @@ const SingleDatePickerHF: React.FC<SingleDatePickerHFProps> = ({
     const year = utcDate.getFullYear();
     const month = utcDate.getMonth();
     const day = utcDate.getDate();
-
-    // Create a new Date at local noon with the local date
-    // This ensures SingleDatePicker displays the correct local date
-    return new Date(year, month, day, 12, 0, 0);
+    const formattedate = new Date(year, month, day, 12, 0, 0);
+    console.log(formattedate)
+    return formattedate;
   };
 
   return (
