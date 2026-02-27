@@ -39,13 +39,35 @@ const SingleDatePickerHF: React.FC<SingleDatePickerHFProps> = ({
 }) => {
   const { control } = useFormContext();
 
+  // Helper function to convert ISO UTC string to local date for display
+  const convertUTCToLocalDate = (isoString: string): Date | null => {
+    if (!isoString) return null;
+
+    // Parse the ISO UTC string
+    const utcDate = new Date(isoString);
+
+    // Extract the LOCAL date components (not UTC!)
+    // This accounts for the timezone offset
+    const year = utcDate.getFullYear();
+    const month = utcDate.getMonth();
+    const day = utcDate.getDate();
+
+    // Create a new Date at local noon with the local date
+    // This ensures SingleDatePicker displays the correct local date
+    return new Date(year, month, day, 12, 0, 0);
+  };
+
   return (
     <Controller
       name={name}
       control={control}
       render={({ field, fieldState }) => {
         // Convert string date to Date object for SingleDatePicker
-        const dateValue = field.value ? new Date(field.value) : null;
+        const dateValue = field.value
+          ? localDateWithoutTime
+            ? convertUTCToLocalDate(field.value)
+            : new Date(field.value)
+          : null;
 
         // Handle onChange to convert Date back to string format for form
         const handleDateChange = (date: Date | null) => {
