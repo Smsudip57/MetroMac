@@ -144,7 +144,7 @@ const SingleDatePickerHF: React.FC<SingleDatePickerHFProps> = ({
             required={required}
             disablePrevious={disablePrevious}
             disableNext={disableNext}
-            error={fieldState.error?.message}
+            error={(fieldState.error as any)?.[0]}
             triggerClassName={
               triggerClassName ||
               fieldContainerStyles +

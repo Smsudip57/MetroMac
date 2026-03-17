@@ -121,7 +121,7 @@ model Task {
     creator         User       @relation("TaskCreator", fields: [created_by], references: [id])
     start_date      DateTime // Stores date with time (UTC)
     end_date        DateTime // Stores date with time (UTC)
-    status          TaskStatus @default(pending)
+    status          TaskStatus @default(assigned)
     hold_reason     String? // Reason for on_hold status
     submission_date DateTime? // Date when task was submitted (UTC)
     completion_date DateTime? // Date when task was completed (UTC)
@@ -137,6 +137,7 @@ model Task {
 
 enum TaskStatus {
     pending // Task is pending
+    assigned
     submitted // Task is submitted
     acknowledged // Task is acknowledged/in progress
     on_hold // Task is on hold

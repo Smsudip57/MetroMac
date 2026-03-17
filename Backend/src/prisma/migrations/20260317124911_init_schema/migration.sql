@@ -5,7 +5,7 @@ CREATE TYPE "RoleType" AS ENUM ('internal', 'external');
 CREATE TYPE "TwoFactorType" AS ENUM ('disabled', 'email', 'google');
 
 -- CreateEnum
-CREATE TYPE "TaskStatus" AS ENUM ('pending', 'submitted', 'acknowledged', 'on_hold', 'rework', 'completed', 'cancelled');
+CREATE TYPE "TaskStatus" AS ENUM ('pending', 'assigned', 'submitted', 'acknowledged', 'on_hold', 'rework', 'completed', 'cancelled');
 
 -- CreateEnum
 CREATE TYPE "FileStorageType" AS ENUM ('local', 'amazon_s3', 'cloudinary');
@@ -94,7 +94,7 @@ CREATE TABLE "Task" (
     "created_by" INTEGER NOT NULL,
     "start_date" TIMESTAMP(3) NOT NULL,
     "end_date" TIMESTAMP(3) NOT NULL,
-    "status" "TaskStatus" NOT NULL DEFAULT 'pending',
+    "status" "TaskStatus" NOT NULL DEFAULT 'assigned',
     "hold_reason" TEXT,
     "submission_date" TIMESTAMP(3),
     "completion_date" TIMESTAMP(3),

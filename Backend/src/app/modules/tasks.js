@@ -181,7 +181,7 @@ async function createTask(req, res, next) {
       created_by: parseInt(created_by),
       start_date: new Date(start_date),
       end_date: new Date(end_date),
-      status: status || "pending",
+      status: status || "assigned",
     };
 
     // Set submission_date if status is submitted (as ISO UTC)
@@ -197,7 +197,7 @@ async function createTask(req, res, next) {
       taskData.completion_date = now;
     }
 
-    console.log(taskData)
+    console.log(taskData);
 
     const task = await prisma.task.create({
       data: {
@@ -276,7 +276,7 @@ async function createTask(req, res, next) {
           task.reporter.username;
         const assigneeName = task.assignee
           ? `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
-          task.assignee.username
+            task.assignee.username
           : "Unassigned";
 
         const emailHtml = taskReporterSupervisionTemplate(
@@ -360,7 +360,12 @@ async function getTaskStats(req, res, next) {
             ...baseWhere,
             status: { not: "completed" },
             // Convert current time to UTC to match database timezone
-            end_date: { lt: new Date(new Date(new Date().toISOString()).getTime() - 24 * 60 * 60 * 1000) },
+            end_date: {
+              lt: new Date(
+                new Date(new Date().toISOString()).getTime() -
+                  24 * 60 * 60 * 1000,
+              ),
+            },
           },
         }),
       ]);
@@ -428,6 +433,7 @@ function buildTaskFilters(filters, userId, userRole, userIsSuperUser) {
     filters.status &&
     [
       "pending",
+      "assigned",
       "submitted",
       "acknowledged",
       "on_hold",
@@ -1069,11 +1075,11 @@ async function updateTask(req, res, next) {
             .map((a) => new Date(a.alert_date).getTime())
             .sort((a, b) => a - b),
         ) !==
-        JSON.stringify(
-          currentTask.taskAlerts
-            .map((a) => new Date(a.alert_date).getTime())
-            .sort((a, b) => a - b),
-        ));
+          JSON.stringify(
+            currentTask.taskAlerts
+              .map((a) => new Date(a.alert_date).getTime())
+              .sort((a, b) => a - b),
+          ));
 
     // if assignee trys to update more than status and he didn't create that task, block it, but allow if he assigned that task to himself
     if (
@@ -1093,12 +1099,21 @@ async function updateTask(req, res, next) {
       );
     }
 
+    if(isStatusSubmittedUpdate && !req.user.is_super_user && isAssigneeTryingToUpdateThatHeDidntCreate && new Date(currentTask.end_date).getTime() < new Date(new Date().toISOString()).getTime()) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        "Task overdue, can't submit!",
+      );
+    }
+
     // Check archive permission - only reporter, creator, or super_user can archive
     let isArchiving = false;
     if (req.body.is_archived !== undefined && req.body.is_archived === true) {
       const canArchive =
-        req?.user?.is_super_user || req.user?.role?.toLowerCase() === "manager" ||
-        req.user?.id === currentTask.created_by || req.user?.id === currentTask.reporter_id;
+        req?.user?.is_super_user ||
+        req.user?.role?.toLowerCase() === "manager" ||
+        req.user?.id === currentTask.created_by ||
+        req.user?.id === currentTask.reporter_id;
 
       if (!canArchive) {
         throw new ApiError(
@@ -1363,7 +1378,7 @@ async function updateTask(req, res, next) {
           newReporter.username;
         const assigneeName = task.assignee
           ? `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
-          task.assignee.username
+            task.assignee.username
           : "Unassigned";
 
         const emailHtml = taskReporterSupervisionTemplate(
@@ -1481,8 +1496,9 @@ async function updateTask(req, res, next) {
       try {
         await PushNotificationService.sendToUser(task.reporter_id, {
           title: "Task Submitted for Review",
-          body: `${task.assignee?.firstName || "Someone"
-            } has submitted the task "${task.title}" for approval`,
+          body: `${
+            task.assignee?.firstName || "Someone"
+          } has submitted the task "${task.title}" for approval`,
           icon: "/icons/notification-icon.png",
           badge: "/icons/notification-badge.png",
           data: {
@@ -1639,8 +1655,9 @@ async function updateTask(req, res, next) {
       try {
         await PushNotificationService.sendToUser(task.reporter_id, {
           title: "Task Acknowledged",
-          body: `${task.assignee?.firstName || "Someone"} has acknowledged "${task.title
-            }"`,
+          body: `${task.assignee?.firstName || "Someone"} has acknowledged "${
+            task.title
+          }"`,
           icon: "/icons/notification-icon.png",
           badge: "/icons/notification-badge.png",
           data: {
@@ -1830,7 +1847,8 @@ async function addTaskAlert(req, res, next) {
     if (alertDate < task.start_date) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        `Alert date must be equal to or after task start date (${task.start_date.toISOString().split("T")[0]
+        `Alert date must be equal to or after task start date (${
+          task.start_date.toISOString().split("T")[0]
         })`,
       );
     }

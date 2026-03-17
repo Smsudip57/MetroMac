@@ -82,58 +82,58 @@ export default function AddEditTaskModal({
       end_date: z.string().min(1, "End date is required"),
     })
     .refine((data) => new Date(data.start_date) <= new Date(data.end_date), {
-      message: "Start date must be before or equal to end date",
+      message: "End date must be same or after start date",
       path: ["end_date"],
     });
 
   const getDefaultValues = (editingTask: any) =>
     editingTask
       ? {
-        title: editingTask.title || "",
-        description: editingTask.description || "",
-        status: {
-          value: editingTask.status || "pending",
-          label: editingTask.status
-            ? editingTask.status.charAt(0).toUpperCase() +
-            editingTask.status.slice(1).replace(/_/g, " ")
-            : "Pending",
-        },
-        hold_reason: editingTask.hold_reason || "",
-        alert_frequency: editingTask.taskAlerts?.length || 0,
-        // Set reporter_id from editing task
-        reporter_id:
-          editingTask.reporter_id && editingTask.reporter
-            ? {
-              value: editingTask.reporter_id.toString(),
-              label: `${editingTask.reporter.firstName} ${editingTask.reporter.lastName}`,
-            }
-            : null,
-        // Only set assigned_to if there's an actual assignee (not null)
-        assigned_to:
-          editingTask.assigned_to && editingTask.assignee
-            ? {
-              value: editingTask.assigned_to.toString(),
-              label: `${editingTask.assignee.firstName} ${editingTask.assignee.lastName}`,
-            }
-            : null,
-        start_date: editingTask.start_date
-          ? new Date(editingTask.start_date).toISOString()
-          : "",
-        end_date: editingTask.end_date
-          ? new Date(editingTask.end_date).toISOString()
-          : "",
-      }
+          title: editingTask.title || "",
+          description: editingTask.description || "",
+          status: {
+            value: editingTask.status || "assigned",
+            label: editingTask.status
+              ? editingTask.status.charAt(0).toUpperCase() +
+                editingTask.status.slice(1).replace(/_/g, " ")
+              : "Assigned",
+          },
+          hold_reason: editingTask.hold_reason || "",
+          alert_frequency: editingTask.taskAlerts?.length || 0,
+          // Set reporter_id from editing task
+          reporter_id:
+            editingTask.reporter_id && editingTask.reporter
+              ? {
+                  value: editingTask.reporter_id.toString(),
+                  label: `${editingTask.reporter.firstName} ${editingTask.reporter.lastName}`,
+                }
+              : null,
+          // Only set assigned_to if there's an actual assignee (not null)
+          assigned_to:
+            editingTask.assigned_to && editingTask.assignee
+              ? {
+                  value: editingTask.assigned_to.toString(),
+                  label: `${editingTask.assignee.firstName} ${editingTask.assignee.lastName}`,
+                }
+              : null,
+          start_date: editingTask.start_date
+            ? new Date(editingTask.start_date).toISOString()
+            : "",
+          end_date: editingTask.end_date
+            ? new Date(editingTask.end_date).toISOString()
+            : "",
+        }
       : {
-        title: "",
-        description: "",
-        status: { value: "pending", label: "Pending" },
-        hold_reason: "",
-        alert_frequency: 0,
-        reporter_id: null,
-        assigned_to: null,
-        start_date: "",
-        end_date: "",
-      };
+          title: "",
+          description: "",
+          status: { value: "assigned", label: "Assigned" },
+          hold_reason: "",
+          alert_frequency: 0,
+          reporter_id: null,
+          assigned_to: null,
+          start_date: "",
+          end_date: "",
+        };
 
   const methods = useForm({
     resolver: async (data) => {
@@ -207,6 +207,9 @@ export default function AddEditTaskModal({
 
   const onSubmit = async (values: any) => {
     try {
+      // if (Object.keys(methods.formState.errors).length > 0) {
+      //   console.log("Form Errors:", methods.formState.errors);
+      // }
       // Validate start_date is before end_date for alerts
       const startDate = new Date(values.start_date);
       if (alerts.length > 0) {
@@ -279,6 +282,7 @@ export default function AddEditTaskModal({
   // Mock data for dropdowns - replace with actual API calls if needed
   const statusOptions = [
     { value: "pending", label: "Pending" },
+    { value: "assigned", label: "Assigned" },
     { value: "submitted", label: "Submitted" },
     { value: "acknowledged", label: "Acknowledged" },
     { value: "on_hold", label: "On Hold" },
@@ -620,7 +624,7 @@ export default function AddEditTaskModal({
           </Button>
           <CustomSideWindow
             open={open || false}
-            onOpenChange={setOpen || (() => { })}
+            onOpenChange={setOpen || (() => {})}
             className="!px-0"
             initialWidth={width}
             maxWidth={width}
@@ -641,10 +645,11 @@ export default function AddEditTaskModal({
                   </p>
                 </div>
                 <div
-                  className={` flex flex-col gap-4 ${isMobile
-                    ? "!max-h-[calc(100vh-140px)]"
-                    : "!max-h-[calc(80vh-160px)]"
-                    } overflow-y-auto pr-6 pt-4`}
+                  className={` flex flex-col gap-4 ${
+                    isMobile
+                      ? "!max-h-[calc(100vh-140px)]"
+                      : "!max-h-[calc(80vh-160px)]"
+                  } overflow-y-auto pr-6 pt-4`}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="md:col-span-3">
@@ -673,6 +678,7 @@ export default function AddEditTaskModal({
                       required
                       disabled={isLoading}
                       localDateWithoutTime={true}
+                      disablePrevious={true}
                     />
                     <SingleDatePickerHF
                       name="end_date"
@@ -681,6 +687,7 @@ export default function AddEditTaskModal({
                       required
                       disabled={isLoading}
                       localDateWithoutTime={true}
+                      disablePrevious={true}
                     />
                     <SearchSelectHF
                       name="status"
@@ -781,20 +788,22 @@ export default function AddEditTaskModal({
                         <button
                           type="button"
                           onClick={() => setAlertMode("manual")}
-                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "manual"
-                            ? "bg-primary text-white"
-                            : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                            }`}
+                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
+                            alertMode === "manual"
+                              ? "bg-primary text-white"
+                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                          }`}
                         >
                           Manual Add
                         </button>
                         <button
                           type="button"
                           onClick={() => setAlertMode("auto")}
-                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "auto"
-                            ? "bg-primary text-white"
-                            : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                            }`}
+                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
+                            alertMode === "auto"
+                              ? "bg-primary text-white"
+                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                          }`}
                         >
                           Auto-Generate
                         </button>
@@ -887,7 +896,7 @@ export default function AddEditTaskModal({
             <span className="flex items-center gap-1">Add Task</span>
           }
           resolver={schema}
-          onSubmit={() => { }}
+          onSubmit={() => {}}
           open={open}
           onOpenChange={setOpen}
           form={
@@ -907,10 +916,11 @@ export default function AddEditTaskModal({
                   </p>
                 </div>
                 <div
-                  className={` flex flex-col gap-4 ${isMobile
-                    ? "!max-h-[calc(100vh-140px)]"
-                    : "!max-h-[calc(80vh-160px)]"
-                    } overflow-y-auto pr-6 pt-4`}
+                  className={` flex flex-col gap-4 ${
+                    isMobile
+                      ? "!max-h-[calc(100vh-140px)]"
+                      : "!max-h-[calc(80vh-160px)]"
+                  } overflow-y-auto pr-6 pt-4`}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="md:col-span-3">
@@ -939,6 +949,7 @@ export default function AddEditTaskModal({
                       required
                       disabled={isLoading}
                       localDateWithoutTime={true}
+                      disablePrevious={true}
                     />
                     <SingleDatePickerHF
                       name="end_date"
@@ -947,6 +958,7 @@ export default function AddEditTaskModal({
                       required
                       disabled={isLoading}
                       localDateWithoutTime={true}
+                      disablePrevious={true}
                     />
                     <SearchSelectHF
                       name="status"
@@ -1047,20 +1059,22 @@ export default function AddEditTaskModal({
                         <button
                           type="button"
                           onClick={() => setAlertMode("manual")}
-                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "manual"
-                            ? "bg-primary text-white"
-                            : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                            }`}
+                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
+                            alertMode === "manual"
+                              ? "bg-primary text-white"
+                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                          }`}
                         >
                           Manual Add
                         </button>
                         <button
                           type="button"
                           onClick={() => setAlertMode("auto")}
-                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "auto"
-                            ? "bg-primary text-white"
-                            : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                            }`}
+                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
+                            alertMode === "auto"
+                              ? "bg-primary text-white"
+                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                          }`}
                         >
                           Auto-Generate
                         </button>

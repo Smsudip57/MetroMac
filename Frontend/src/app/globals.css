@@ -4,26 +4,26 @@
 
 :root {
   /* Logo-aligned colors */
-  --color-primary: #00a2ff;        /* Bright Blue from the logo logo */
-  --color-secondary: #00d4ff;      /* Light Cyan from the logo logo */
-  --color-tertiary: #0055ff;       /* Deeper Blue for depth */
-  
+  --color-primary: #00a2ff; /* Bright Blue from the logo logo */
+  --color-secondary: #00d4ff; /* Light Cyan from the logo logo */
+  --color-tertiary: #0055ff; /* Deeper Blue for depth */
+
   /* Harmonized Semantic Colors */
-  --color-success: #00c896;        /* Teal-green (blends better with cyan) */
-  --color-warning: #f39c12;        /* Amber (complementary to blue) */
-  --color-neutral: #ff7e29;        /* Warm Orange for balance */
-  
+  --color-success: #00c896; /* Teal-green (blends better with cyan) */
+  --color-warning: #f39c12; /* Amber (complementary to blue) */
+  --color-neutral: #ff7e29; /* Warm Orange for balance */
+
   /* Clean Neutrals */
   --color-border: #e1e8ed;
   --color-bg: #ffffff;
-  --color-bg-shade: #f0f4f8;       /* Slightly blue-tinted gray */
-  --color-text: #2c3e50;           /* Deep navy-gray for readability */
-  --color-text-highlight: #001529; 
+  --color-bg-shade: #f0f4f8; /* Slightly blue-tinted gray */
+  --color-text: #2c3e50; /* Deep navy-gray for readability */
+  --color-text-highlight: #001529;
   --color-gray-dark: #95a5a6;
 }
 
 html.dark {
-  --color-primary: #BFB3FD;
+  --color-primary: #bfb3fd;
   --color-secondary: #892cdc;
   --color-tertiary: #009999;
   --color-success: #229954;
@@ -79,6 +79,11 @@ html.dark {
 html {
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
+}
+
+#_rht_toaster,
+#_rht_toaster * {
+  z-index: 9999999999999 !important;
 }
 
 /* Enhance input behavior to prevent zoom */
@@ -165,10 +170,13 @@ input::-webkit-inner-spin-button {
   background: radial-gradient(ellipse at bottom, #2a6666, #0b1a1a);
 }
 .radial-gradient-auth {
-  background-image: radial-gradient(ellipse at top, #2a6666 0%, transparent 75%),
+  background-image:
+    radial-gradient(ellipse at top, #2a6666 0%, transparent 75%),
     radial-gradient(ellipse at bottom, #2a6666 0%, transparent 75%);
   background-repeat: no-repeat;
-  background-size: 100% 100%, 100% 100%;
+  background-size:
+    100% 100%,
+    100% 100%;
   background-position: top, bottom;
 }
 
