@@ -40,7 +40,7 @@ CREATE TABLE "Role" (
 -- CreateTable
 CREATE TABLE "User" (
     "id" SERIAL NOT NULL,
-    "username" CITEXT NOT NULL,
+    "username" TEXT NOT NULL,
     "firstName" TEXT,
     "lastName" TEXT,
     "email" TEXT NOT NULL,

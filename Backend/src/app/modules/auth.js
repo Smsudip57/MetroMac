@@ -17,12 +17,12 @@ async function login(req, res, next) {
     if (!username || !password) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        "Username and password are required"
+        "Username and password are required",
       );
     }
 
     const user = await prisma.user.findUnique({
-      where: { username: username.trim() },
+      where: { username: username.trim().toLowerCase() },
       include: { role: true },
     });
 
@@ -39,7 +39,7 @@ async function login(req, res, next) {
         role: user.role?.name,
         is_super_user: user.is_super_user,
       },
-      rememberMe ? "30d" : "1d"
+      rememberMe ? "30d" : "1d",
     );
 
     // Set token in httpOnly cookie
@@ -113,7 +113,7 @@ async function changePassword(req, res, next) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, "Old password is incorrect");
     const hashedPassword = await bcrypt.hash(
       newPassword,
-      Number(config.bcrypt_salt_rounds)
+      Number(config.bcrypt_salt_rounds),
     );
     await prisma.user.update({
       where: { id: userId },

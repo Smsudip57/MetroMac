@@ -47,7 +47,7 @@ enum RoleType {
 // --- Users ---
 model User {
     id               Int           @id @default(autoincrement())
-    username         String        @unique @db.Citext
+    username         String        @unique
     firstName        String?
     lastName         String?
     email            String

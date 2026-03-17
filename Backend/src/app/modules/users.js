@@ -286,13 +286,13 @@ async function createUser(req, res, next) {
     // Hash password using bcrypt
     const hashedPassword = await bcrypt.hash(
       password,
-      Number(config.bcrypt_salt_rounds)
+      Number(config.bcrypt_salt_rounds),
     );
 
     // Create user
     const user = await prisma.user.create({
       data: {
-        username,
+        username: username.toLowerCase(),
         email,
         password: hashedPassword,
         firstName,
@@ -363,13 +363,13 @@ async function updateUser(req, res, next) {
 
     // Only update fields that are provided
     const data = {};
-    if (username !== undefined) data.username = username;
+    if (username !== undefined) data.username = username.toLowerCase();
     if (email !== undefined) data.email = email;
     if (password !== undefined) {
       // Hash password using bcrypt before saving
       data.password = await bcrypt.hash(
         password,
-        Number(config.bcrypt_salt_rounds)
+        Number(config.bcrypt_salt_rounds),
       );
     }
     if (firstName !== undefined) data.firstName = firstName;
@@ -550,7 +550,7 @@ async function getUserStats(req, res, next) {
     const basicStats = await queryBuilder.getBasicStats(baseWhere);
     const result = queryBuilder.formatStatsWithChanges(
       basicStats.current,
-      basicStats.historical
+      basicStats.historical,
     );
 
     // Helper to ensure negative sign for decrements, always number
@@ -581,13 +581,13 @@ async function getUserStats(req, res, next) {
         const formatted = queryBuilder.formatTypeStats(
           internalStats.current,
           internalStats.historical,
-          "internal"
+          "internal",
         );
         // Patch: ensure change fields are signed numbers
         if (formatted && typeof formatted.percentageChange === "number") {
           formatted.percentageChange = signedChange(
             internalStats.current?.totalUsers ?? 0,
-            internalStats.historical?.totalUsers ?? 0
+            internalStats.historical?.totalUsers ?? 0,
           );
         }
         result.internal = formatted;
@@ -598,12 +598,12 @@ async function getUserStats(req, res, next) {
         const formatted = queryBuilder.formatTypeStats(
           externalStats.current,
           externalStats.historical,
-          "external"
+          "external",
         );
         if (formatted && typeof formatted.percentageChange === "number") {
           formatted.percentageChange = signedChange(
             externalStats.current?.totalUsers ?? 0,
-            externalStats.historical?.totalUsers ?? 0
+            externalStats.historical?.totalUsers ?? 0,
           );
         }
         result.external = formatted;
@@ -616,7 +616,7 @@ async function getUserStats(req, res, next) {
       result.absoluteTotalUsers = absoluteStats.absoluteTotalUsers;
       result.absoluteTotalUsersChange = signedChange(
         absoluteStats.absoluteTotalUsers,
-        absoluteStats.absoluteTotalUsers30DaysAgo
+        absoluteStats.absoluteTotalUsers30DaysAgo,
       );
     }
 

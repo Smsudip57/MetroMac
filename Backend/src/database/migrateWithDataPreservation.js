@@ -191,9 +191,7 @@ async function resetDatabaseCompletely() {
                 CREATE SCHEMA public;
             `);
 
-      console.log("   • Creating citext extension...");
-      await client.query("CREATE EXTENSION IF NOT EXISTS citext;");
-      console.log("✅ Database reset and extensions ready");
+      console.log("✅ Database reset successfully");
     } finally {
       await client.end();
     }
