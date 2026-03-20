@@ -32,7 +32,7 @@ const generalSettingsSchema = z
       .string()
       .regex(
         /^[A-Z]{3}$/,
-        "Currency must be 3 uppercase letters (e.g., USD, EUR)"
+        "Currency must be 3 uppercase letters (e.g., USD, EUR)",
       ),
     currency_sign: z.string().min(1, "Currency sign cannot be empty"),
     file_storage_type: z.enum(["local", "amazon_s3", "cloudinary"]),
@@ -56,7 +56,7 @@ const generalSettingsSchema = z
     {
       message: "API key is required for non-local storage",
       path: ["api_key"],
-    }
+    },
   );
 
 type GeneralSettingsFormData = z.infer<typeof generalSettingsSchema>;
@@ -84,7 +84,7 @@ const validateIconDimensions = (file: File): Promise<boolean> => {
 
 // Helper function to get image dimensions
 const getImageDimensions = (
-  file: File | string
+  file: File | string,
 ): Promise<{ width: number; height: number } | null> => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -171,7 +171,7 @@ export default function GeneralSettings() {
     resetUploadedImages: resetLogoImages,
   } = useSmartFileUpload(
     (file) => uploadFile(file).unwrap(),
-    settingsData?.data?.company_logo ? [settingsData.data.company_logo] : []
+    settingsData?.data?.company_logo ? [settingsData.data.company_logo] : [],
   );
 
   // Smart file upload hook for icon with dimension validation
@@ -184,26 +184,27 @@ export default function GeneralSettings() {
     resetUploadedImages: resetIconImages,
   } = useSmartFileUpload(
     (file) => uploadFile(file).unwrap(),
-    settingsData?.data?.company_icon ? [settingsData.data.company_icon] : []
+    settingsData?.data?.company_icon ? [settingsData.data.company_icon] : [],
   );
 
   const settings = settingsData?.data;
 
   // Wrapper for icon upload to validate dimensions
   const handleIconUpload = (
-    files: string | string[] | File | File[] | null
+    files: string | string[] | File | File[] | null,
   ) => {
-    // Filter to only File objects
-    if (
-      !files ||
-      (Array.isArray(files) && files.length === 0) ||
-      typeof files === "string"
-    )
-      return;
+    if (!files || (Array.isArray(files) && files.length === 0)) return;
 
     const fileArray = Array.isArray(files) ? files : [files];
-    const actualFiles = fileArray.filter((f) => f instanceof File) as File[];
 
+    // Handle string URLs (from mode="upload-string" - already uploaded)
+    if (typeof fileArray[0] === "string") {
+      handleIconUploadBase(fileArray as string[]);
+      return;
+    }
+
+    // Handle File objects (backward compatibility)
+    const actualFiles = fileArray.filter((f) => f instanceof File) as File[];
     if (actualFiles.length === 0) return;
 
     const file = actualFiles[0];
@@ -212,7 +213,7 @@ export default function GeneralSettings() {
     validateIconDimensions(file).then((isValid) => {
       if (!isValid) {
         toast.error(
-          "Company icon must be in 1:1 ratio (square) with 10% tolerance"
+          "Company icon must be in 1:1 ratio (square) with 10% tolerance",
         );
         handleIconRemove(0);
         return;
@@ -225,16 +226,19 @@ export default function GeneralSettings() {
 
   // Handler for logo upload to track dimensions
   const handleLogoUpload = (
-    files: string | string[] | File | File[] | null
+    files: string | string[] | File | File[] | null,
   ) => {
-    // Normalize and filter to actual File objects
-    if (
-      !files ||
-      (Array.isArray(files) && files.length === 0) ||
-      typeof files === "string"
-    )
-      return;
+    if (!files || (Array.isArray(files) && files.length === 0)) return;
+
     const fileArray = Array.isArray(files) ? files : [files];
+
+    // Handle string URLs (from mode="upload-string" - already uploaded)
+    if (typeof fileArray[0] === "string") {
+      handleLogoUploadBase(fileArray as string[]);
+      return;
+    }
+
+    // Handle File objects (backward compatibility)
     const actualFiles = fileArray.filter((f) => f instanceof File) as File[];
     if (actualFiles.length === 0) return;
 
@@ -588,10 +592,10 @@ export default function GeneralSettings() {
               setEditMode(false);
               reset();
               resetLogoImages(
-                settings?.company_logo ? [settings.company_logo] : []
+                settings?.company_logo ? [settings.company_logo] : [],
               );
               resetIconImages(
-                settings?.company_icon ? [settings.company_icon] : []
+                settings?.company_icon ? [settings.company_icon] : [],
               );
             }}
             isLoading={isUpdating}
@@ -615,6 +619,7 @@ export default function GeneralSettings() {
                       multiple={false}
                       className="h-28 w-28"
                       previewInside={true}
+                      mode="upload-string"
                       onImageUpload={handleIconUpload}
                       uploadedImages={iconImages as (File | null)[]}
                       onImageRemove={handleIconRemove}
@@ -629,6 +634,7 @@ export default function GeneralSettings() {
                       multiple={false}
                       className="h-28 w-28"
                       previewInside={true}
+                      mode="upload-string"
                       onImageUpload={handleLogoUpload}
                       uploadedImages={logoImages as (File | null)[]}
                       onImageRemove={handleLogoRemove}
