@@ -189,7 +189,7 @@ export default function GeneralSettings() {
 
   const settings = settingsData?.data;
 
-  // Wrapper for icon upload to validate dimensions
+  // Wrapper for icon upload with immediate upload on selection
   const handleIconUpload = (
     files: string | string[] | File | File[] | null,
   ) => {
@@ -197,34 +197,31 @@ export default function GeneralSettings() {
 
     const fileArray = Array.isArray(files) ? files : [files];
 
-    // Handle string URLs (from mode="upload-string" - already uploaded)
-    if (typeof fileArray[0] === "string") {
-      handleIconUploadBase(fileArray as string[]);
+    // Handle File objects - validate dimensions before passing
+    const actualFiles = fileArray.filter((f) => f instanceof File) as File[];
+    if (actualFiles.length > 0) {
+      const file = actualFiles[0];
+      validateIconDimensions(file).then((isValid) => {
+        if (!isValid) {
+          toast.error(
+            "Company icon must be in 1:1 ratio (square) with 10% tolerance",
+          );
+          handleIconRemove(0);
+          return;
+        }
+        handleIconUploadBase([file]);
+      });
       return;
     }
 
-    // Handle File objects (backward compatibility)
-    const actualFiles = fileArray.filter((f) => f instanceof File) as File[];
-    if (actualFiles.length === 0) return;
-
-    const file = actualFiles[0];
-
-    // Validate dimensions asynchronously
-    validateIconDimensions(file).then((isValid) => {
-      if (!isValid) {
-        toast.error(
-          "Company icon must be in 1:1 ratio (square) with 10% tolerance",
-        );
-        handleIconRemove(0);
-        return;
-      }
-
-      // Call the base upload handler on success
-      handleIconUploadBase(actualFiles);
-    });
+    // Handle URL strings (from upload-string mode) - pass directly
+    const urlStrings = fileArray.filter((f) => typeof f === "string");
+    if (urlStrings.length > 0) {
+      handleIconUploadBase(urlStrings);
+    }
   };
 
-  // Handler for logo upload to track dimensions
+  // Handler for logo upload
   const handleLogoUpload = (
     files: string | string[] | File | File[] | null,
   ) => {
@@ -232,27 +229,24 @@ export default function GeneralSettings() {
 
     const fileArray = Array.isArray(files) ? files : [files];
 
-    // Handle string URLs (from mode="upload-string" - already uploaded)
-    if (typeof fileArray[0] === "string") {
-      handleLogoUploadBase(fileArray as string[]);
+    // Handle File objects - get dimensions
+    const actualFiles = fileArray.filter((f) => f instanceof File) as File[];
+    if (actualFiles.length > 0) {
+      const file = actualFiles[0];
+      getImageDimensions(file).then((dims) => {
+        if (dims) {
+          setLogoDimensions(dims);
+        }
+      });
+      handleLogoUploadBase(actualFiles);
       return;
     }
 
-    // Handle File objects (backward compatibility)
-    const actualFiles = fileArray.filter((f) => f instanceof File) as File[];
-    if (actualFiles.length === 0) return;
-
-    const file = actualFiles[0];
-
-    // Get logo dimensions when uploaded
-    getImageDimensions(file).then((dims) => {
-      if (dims) {
-        setLogoDimensions(dims);
-      }
-    });
-
-    // Call the base upload handler
-    handleLogoUploadBase(actualFiles);
+    // Handle URL strings (from upload-string mode) - pass directly
+    const urlStrings = fileArray.filter((f) => typeof f === "string");
+    if (urlStrings.length > 0) {
+      handleLogoUploadBase(urlStrings);
+    }
   };
 
   const methods = useForm<GeneralSettingsFormData>({
