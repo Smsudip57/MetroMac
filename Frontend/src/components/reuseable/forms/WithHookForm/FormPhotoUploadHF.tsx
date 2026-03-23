@@ -85,9 +85,9 @@ const FormPhotoUploadHF: React.FC<FormPhotoUploadHFProps> = ({
           onImageUpload(uploadedUrls);
         }
       }
-    } catch (error) {
+    } catch (error:any) {
       console.error("Upload error:", error);
-      toast.error("Failed to upload images");
+      toast.error(error?.data?.message || "File upload failed");
     } finally {
       setIsUploading(false);
     }

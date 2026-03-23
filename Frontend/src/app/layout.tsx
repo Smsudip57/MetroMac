@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
       `${API_CONFIG.base_url}/api/v1/general-settings`,
       {
         next: { revalidate: 60 }, // Revalidate every 1 minutes
-      }
+      },
     );
 
     const settings = await response.json();
@@ -81,6 +81,25 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+
+        {/* Early PWA listener - must run BEFORE React loads to catch beforeinstallprompt */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.__pwaInstallPrompt = null;
+              (function() {
+                const handleBeforeInstallPrompt = (e) => {
+                  console.log("[PWA-EARLY] beforeinstallprompt event caught at HTML head level");
+                  e.preventDefault();
+                  window.__pwaInstallPrompt = e;
+                  console.log("[PWA-EARLY] Event stored in window.__pwaInstallPrompt");
+                };
+                window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt, { capture: true });
+                console.log("[PWA-EARLY] Early listener attached at document head");
+              })();
+            `,
+          }}
+        />
 
         <script
           dangerouslySetInnerHTML={{

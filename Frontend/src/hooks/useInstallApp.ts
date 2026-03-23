@@ -21,30 +21,42 @@ export const useInstallApp = () => {
     console.log("  - PushManager:", "PushManager" in window);
     console.log(
       "  - BeforeInstallPromptEvent:",
-      "BeforeInstallPromptEvent" in window
+      "BeforeInstallPromptEvent" in window,
     );
 
     // Check if app is already installed
     const isStandalone = window.matchMedia(
-      "(display-mode: standalone)"
+      "(display-mode: standalone)",
     ).matches;
     console.log(
       "[PWA-INIT] App already installed (standalone mode):",
-      isStandalone
+      isStandalone,
     );
 
     if (isStandalone) {
       console.log(
-        "[PWA-INIT] App is in standalone mode, skipping install prompt"
+        "[PWA-INIT] App is in standalone mode, skipping install prompt",
       );
       setIsInstalled(true);
+      return;
+    }
+
+    // Check if we already have the event from early HTML listener
+    const earlyPrompt = (window as any).__pwaInstallPrompt;
+    if (earlyPrompt) {
+      console.log(
+        "[PWA-INIT] Using beforeinstallprompt event from early HTML listener",
+      );
+      globalInstallPrompt = earlyPrompt;
+      setInstallPrompt(earlyPrompt);
+      setIsInstallable(true);
       return;
     }
 
     // Check if we already have the event from global storage
     if (globalInstallPrompt) {
       console.log(
-        "[PWA-INIT] Using cached beforeinstallprompt event from global storage"
+        "[PWA-INIT] Using cached beforeinstallprompt event from global storage",
       );
       setInstallPrompt(globalInstallPrompt);
       setIsInstallable(true);
@@ -76,6 +88,7 @@ export const useInstallApp = () => {
     const handleAppInstalled = () => {
       console.log("[PWA-EVENT] appinstalled event triggered 🎉");
       globalInstallPrompt = null; // Clear cache
+      (window as any).__pwaInstallPrompt = null; // Clear early prompt
       setIsInstalled(true);
       setIsInstallable(false);
       setInstallPrompt(null);
@@ -100,13 +113,17 @@ export const useInstallApp = () => {
     console.log("[PWA-INSTALL] installPrompt state:", installPrompt);
     console.log("[PWA-INSTALL] isInstallable state:", isInstallable);
 
+    // Check for the LATEST event (in case a new one arrived after first dismiss)
+    const latestPrompt = (window as any).__pwaInstallPrompt || installPrompt;
+    console.log("[PWA-INSTALL] Latest prompt available:", !!latestPrompt);
+
     // If we have the prompt event, use it
-    if (installPrompt) {
+    if (latestPrompt) {
       try {
         console.log("[PWA-INSTALL] Showing install prompt...");
-        installPrompt.prompt();
+        latestPrompt.prompt();
 
-        const { outcome } = await installPrompt.userChoice;
+        const { outcome } = await latestPrompt.userChoice;
         console.log("[PWA-INSTALL] User response:", outcome);
 
         if (outcome === "accepted") {
@@ -117,6 +134,8 @@ export const useInstallApp = () => {
           console.log("[PWA-INSTALL] User dismissed installation ❌");
         }
 
+        // Clear both the global and local state after using the event
+        (window as any).__pwaInstallPrompt = null;
         setInstallPrompt(null);
       } catch (error) {
         console.error("[PWA-INSTALL] Installation error:", error);
@@ -126,7 +145,7 @@ export const useInstallApp = () => {
 
     // Fallback: Show browser-specific installation instructions
     console.log(
-      "[PWA-INSTALL] ⚠️ No prompt available, showing fallback instructions"
+      "[PWA-INSTALL] ⚠️ No prompt available, showing fallback instructions",
     );
 
     const userAgent = navigator.userAgent.toLowerCase();
