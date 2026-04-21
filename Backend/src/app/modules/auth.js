@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 // Login user and return JWT
 async function login(req, res, next) {
   try {
-    const { username, password, rememberMe } = req.body;
+    const { username, password, rememberMe, timezone } = req.body;
 
     // Validate required fields
     if (!username || !password) {
@@ -32,6 +32,14 @@ async function login(req, res, next) {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)
       throw new ApiError(StatusCodes.UNAUTHORIZED, "Invalid credentials");
+
+    // Update user timezone if provided
+    if (timezone) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { timezone },
+      });
+    }
 
     const token = jwtHelpers.signToken(
       {
@@ -60,6 +68,7 @@ async function login(req, res, next) {
         email: user.email,
         role: user.role?.name,
         is_super_user: user.is_super_user,
+        timezone: timezone || user.timezone,
       },
     });
   } catch (error) {
@@ -93,6 +102,7 @@ async function getMe(req, res, next) {
         profileImage: user.profileImage,
         role: user.role?.name || null,
         is_super_user: user.is_super_user,
+        timezone: user.timezone,
       },
       modules: modules,
     });

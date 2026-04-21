@@ -59,6 +59,7 @@ model User {
     skype            String?
     profileImage     String?
     emailSignature   String?
+    timezone         String        @default("UTC") // e.g., "Asia/Dhaka", "America/New_York"
     password         String
     is_super_user    Boolean       @default(false)
     is_verified      Boolean       @default(false)

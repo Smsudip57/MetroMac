@@ -17,9 +17,80 @@ import {
   taskSubmittedForReviewTemplate,
   taskApprovedTemplate,
   taskInProgressTemplate,
+  taskUnassignmentTemplate,
+  buildTaskUpdateEmailHtml,
 } from "../../templates/emailTemplates.js";
 
 const prisma = new PrismaClient();
+
+
+function formatDateToUserTimezone(utcDate, userTimezone = "Asia/Dubai") {
+  try {
+    const options = {
+      timeZone: userTimezone || "Asia/Dubai",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    };
+    return new Date(utcDate).toLocaleDateString("en-US", options);
+  } catch (error) {
+    // Fallback to UTC if timezone is invalid
+    console.warn(`Invalid timezone "${userTimezone}", falling back to UTC`);
+    return new Date(utcDate).toLocaleDateString("en-US");
+  }
+}
+
+function formatTimeToUserTimezone(utcDate, userTimezone = "Asia/Dubai") {
+  try {
+    const options = {
+      timeZone: userTimezone || "Asia/Dubai",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    };
+    return new Date(utcDate).toLocaleTimeString("en-US", options);
+  } catch (error) {
+    // Fallback to UTC if timezone is invalid
+    console.warn(`Invalid timezone "${userTimezone}", falling back to UTC`);
+    return new Date(utcDate).toLocaleTimeString("en-US", { hour12: false });
+  }
+}
+
+
+function createTaskWithConvertedDates(task, receiverTimezone = "Asia/Dubai") {
+  return {
+    ...task,
+    start_date: formatDateToUserTimezone(
+      task.start_date,
+      receiverTimezone,
+    ),
+    end_date: formatDateToUserTimezone(task.end_date, receiverTimezone),
+    created_at: task.created_at ? formatDateToUserTimezone(task.created_at, receiverTimezone) : task.created_at,
+    updated_at: task.updated_at ? formatDateToUserTimezone(task.updated_at, receiverTimezone) : task.updated_at,
+    submission_date: task.submission_date ? formatDateToUserTimezone(task.submission_date, receiverTimezone) : null,
+    completion_date: task.completion_date ? formatDateToUserTimezone(task.completion_date, receiverTimezone) : null,
+  };
+}
+
+function formatChangesForEmail(changes, receiverTimezone = "Asia/Dubai") {
+  const formattedChanges = {};
+
+  Object.keys(changes).forEach((field) => {
+    const change = changes[field];
+    let oldValue = change.old;
+    let newValue = change.new;
+
+    // Format dates for date fields
+    if (field.includes("date")) {
+      oldValue = formatDateToUserTimezone(oldValue, receiverTimezone);
+      newValue = formatDateToUserTimezone(newValue, receiverTimezone);
+    }
+
+    formattedChanges[field] = { old: oldValue, new: newValue };
+  });
+
+  return formattedChanges;
+}
 
 // ==================== TASK FUNCTIONS ====================
 
@@ -216,10 +287,11 @@ async function createTask(req, res, next) {
             firstName: true,
             lastName: true,
             email: true,
+            timezone: true,
           },
         },
         reporter: {
-          select: { id: true, username: true, firstName: true, lastName: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, timezone: true },
         },
         taskAlerts: true,
         comments: true,
@@ -241,10 +313,13 @@ async function createTask(req, res, next) {
           `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
           task.reporter.username;
 
+        const assigneeTimezone = task.assignee?.timezone || "Asia/Dubai";
+        const taskForEmail = createTaskWithConvertedDates(task, assigneeTimezone);
+
         const emailHtml = taskAssignmentTemplate(
           assigneeName,
           reporterName,
-          task,
+          taskForEmail,
         );
 
         await emailService.sendEmail({
@@ -276,13 +351,16 @@ async function createTask(req, res, next) {
           task.reporter.username;
         const assigneeName = task.assignee
           ? `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
-            task.assignee.username
+          task.assignee.username
           : "Unassigned";
+
+        const reporterTimezone = task.reporter?.timezone || "Asia/Dubai";
+        const taskForEmail = createTaskWithConvertedDates(task, reporterTimezone);
 
         const emailHtml = taskReporterSupervisionTemplate(
           reporterName,
           assigneeName,
-          task,
+          taskForEmail,
         );
 
         await emailService.sendEmail({
@@ -363,7 +441,7 @@ async function getTaskStats(req, res, next) {
             end_date: {
               lt: new Date(
                 new Date(new Date().toISOString()).getTime() -
-                  24 * 60 * 60 * 1000,
+                24 * 60 * 60 * 1000,
               ),
             },
           },
@@ -875,10 +953,11 @@ async function updateTask(req, res, next) {
             firstName: true,
             lastName: true,
             email: true,
+            timezone: true,
           },
         },
         reporter: {
-          select: { id: true, username: true, firstName: true, lastName: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, timezone: true },
         },
         creator: {
           select: { id: true, username: true, firstName: true, lastName: true },
@@ -939,6 +1018,7 @@ async function updateTask(req, res, next) {
           firstName: true,
           lastName: true,
           email: true,
+          timezone: true,
         },
       });
       if (!newReporter) {
@@ -957,6 +1037,7 @@ async function updateTask(req, res, next) {
           firstName: true,
           lastName: true,
           email: true,
+          timezone: true,
           role: { select: { id: true, name: true } },
         },
       });
@@ -1075,11 +1156,11 @@ async function updateTask(req, res, next) {
             .map((a) => new Date(a.alert_date).getTime())
             .sort((a, b) => a - b),
         ) !==
-          JSON.stringify(
-            currentTask.taskAlerts
-              .map((a) => new Date(a.alert_date).getTime())
-              .sort((a, b) => a - b),
-          ));
+        JSON.stringify(
+          currentTask.taskAlerts
+            .map((a) => new Date(a.alert_date).getTime())
+            .sort((a, b) => a - b),
+        ));
 
     // if assignee trys to update more than status and he didn't create that task, block it, but allow if he assigned that task to himself
     if (
@@ -1099,7 +1180,7 @@ async function updateTask(req, res, next) {
       );
     }
 
-    if(isStatusSubmittedUpdate && !req.user.is_super_user && isAssigneeTryingToUpdateThatHeDidntCreate && new Date(currentTask.end_date).getTime() < new Date(new Date().toISOString()).getTime()) {
+    if (isStatusSubmittedUpdate && !req.user.is_super_user && isAssigneeTryingToUpdateThatHeDidntCreate && new Date(currentTask.end_date).getTime() < new Date(new Date().toISOString()).getTime()) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
         "Task overdue, can't submit!",
@@ -1175,6 +1256,7 @@ async function updateTask(req, res, next) {
             firstName: true,
             lastName: true,
             email: true,
+            timezone: true,
           },
         },
         reporter: {
@@ -1184,6 +1266,7 @@ async function updateTask(req, res, next) {
             firstName: true,
             lastName: true,
             email: true,
+            timezone: true,
           },
         },
         taskAlerts: true,
@@ -1229,10 +1312,13 @@ async function updateTask(req, res, next) {
           `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
           task.reporter.username;
 
+        const assigneeTimezone = newAssignee?.timezone || "Asia/Dubai";
+        const taskForEmail = createTaskWithConvertedDates(task, assigneeTimezone);
+
         const emailHtml = taskReassignmentTemplate(
           assigneeName,
           reporterName,
-          task,
+          taskForEmail,
         );
 
         await emailService.sendEmail({
@@ -1269,14 +1355,19 @@ async function updateTask(req, res, next) {
             `${currentTask.assignee.firstName} ${currentTask.assignee.lastName}`.trim() ||
             currentTask.assignee.username;
 
+          const previousAssigneeTimezone = currentTask.assignee?.timezone || "Asia/Dubai";
+          const taskForEmail = createTaskWithConvertedDates(task, previousAssigneeTimezone);
+
+          const emailHtml = taskUnassignmentTemplate(
+            previousAssigneeName,
+            `${newAssignee.firstName} ${newAssignee.lastName}`,
+            taskForEmail,
+          );
+
           await emailService.sendEmail({
             to: currentTask.assignee.email,
             subject: `Task Unassigned: ${task.title}`,
-            html: `
-              <p>Hi ${previousAssigneeName},</p>
-              <p>You have been unassigned from the task <strong>"${task.title}"</strong>.</p>
-              <p>It has been reassigned to <strong>${newAssignee.firstName} ${newAssignee.lastName}</strong>.</p>
-            `,
+            html: emailHtml,
           });
         } catch (emailError) {
           console.error("Failed to send unassignment email:", emailError);
@@ -1312,37 +1403,11 @@ async function updateTask(req, res, next) {
           `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
           task.assignee.username;
 
-        // Build change details HTML
-        let changesHtml = "";
-        Object.keys(changes).forEach((field) => {
-          const change = changes[field];
-          let oldValue = change.old;
-          let newValue = change.new;
+        const assigneeTimezone = task.assignee?.timezone || "Asia/Dubai";
+        const taskForEmail = createTaskWithConvertedDates(task, assigneeTimezone);
+        const changesForEmail = formatChangesForEmail(changes, assigneeTimezone);
 
-          // Format dates nicely
-          if (field.includes("date")) {
-            oldValue = new Date(oldValue).toLocaleDateString();
-            newValue = new Date(newValue).toLocaleDateString();
-          }
-
-          // Format field name
-          const fieldLabel = field
-            .replace(/_/g, " ")
-            .replace(/\b\w/g, (l) => l.toUpperCase());
-
-          changesHtml += `
-            <tr style="border-bottom: 1px solid #e0e0e0;">
-              <td style="padding: 12px 0; font-weight: bold; color: #333; width: 120px;">${fieldLabel}:</td>
-              <td style="padding: 12px 0; color: #666;">
-                <span style="text-decoration: line-through; color: #999;">${oldValue}</span>
-                <span style="margin: 0 10px; color: #999;">→</span>
-                <span style="color: #6157ff; font-weight: bold;">${newValue}</span>
-              </td>
-            </tr>
-          `;
-        });
-
-        const emailHtml = taskUpdateTemplate(assigneeName, task, changesHtml);
+        const emailHtml = buildTaskUpdateEmailHtml(assigneeName, taskForEmail, changesForEmail);
 
         await emailService.sendEmail({
           to: task.assignee.email,
@@ -1378,13 +1443,16 @@ async function updateTask(req, res, next) {
           newReporter.username;
         const assigneeName = task.assignee
           ? `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
-            task.assignee.username
+          task.assignee.username
           : "Unassigned";
+
+        const reporterTimezone = newReporter?.timezone || "Asia/Dubai";
+        const taskForEmail = createTaskWithConvertedDates(task, reporterTimezone);
 
         const emailHtml = taskReporterSupervisionTemplate(
           newReporterName,
           assigneeName,
-          task,
+          taskForEmail,
         );
 
         await emailService.sendEmail({
@@ -1422,10 +1490,13 @@ async function updateTask(req, res, next) {
             `${currentTask.reporter.firstName} ${currentTask.reporter.lastName}`.trim() ||
             currentTask.reporter.username;
 
+          const oldReporterTimezone = currentTask.reporter?.timezone || "Asia/Dubai";
+          const taskForEmail = createTaskWithConvertedDates(task, oldReporterTimezone);
+
           const emailHtml = taskReporterUnassignmentTemplate(
             oldReporterName,
             newReporter.firstName + " " + newReporter.lastName,
-            task,
+            taskForEmail,
           );
 
           await emailService.sendEmail({
@@ -1474,10 +1545,13 @@ async function updateTask(req, res, next) {
           `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
           task.reporter.username;
 
+        const reporterTimezone = task.reporter?.timezone || "Asia/Dubai";
+        const taskForEmail = createTaskWithConvertedDates(task, reporterTimezone);
+
         const emailHtml = taskSubmittedForReviewTemplate(
           reporterName,
           assigneeName,
-          task,
+          taskForEmail,
         );
 
         await emailService.sendEmail({
@@ -1496,9 +1570,8 @@ async function updateTask(req, res, next) {
       try {
         await PushNotificationService.sendToUser(task.reporter_id, {
           title: "Task Submitted for Review",
-          body: `${
-            task.assignee?.firstName || "Someone"
-          } has submitted the task "${task.title}" for approval`,
+          body: `${task.assignee?.firstName || "Someone"
+            } has submitted the task "${task.title}" for approval`,
           icon: "/icons/notification-icon.png",
           badge: "/icons/notification-badge.png",
           data: {
@@ -1530,10 +1603,13 @@ async function updateTask(req, res, next) {
           `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
           task.reporter.username;
 
+        const assigneeTimezone = task.assignee?.timezone || "Asia/Dubai";
+        const taskForEmail = createTaskWithConvertedDates(task, assigneeTimezone);
+
         const emailHtml = taskApprovedTemplate(
           assigneeName,
           reporterName,
-          task,
+          taskForEmail,
         );
 
         await emailService.sendEmail({
@@ -1582,7 +1658,10 @@ async function updateTask(req, res, next) {
             `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
             task.reporter.username;
 
-          const emailHtml = taskHoldTemplate(reporterName, task);
+          const reporterTimezone = task.reporter?.timezone || "Asia/Dubai";
+          const taskForEmail = createTaskWithConvertedDates(task, reporterTimezone);
+
+          const emailHtml = taskHoldTemplate(reporterName, taskForEmail);
 
           await emailService.sendEmail({
             to: task.reporter.email,
@@ -1633,10 +1712,13 @@ async function updateTask(req, res, next) {
           `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
           task.reporter.username;
 
+        const reporterTimezone = task.reporter?.timezone || "Asia/Dubai";
+        const taskForEmail = createTaskWithConvertedDates(task, reporterTimezone);
+
         const emailHtml = taskInProgressTemplate(
           reporterName,
           assigneeName,
-          task,
+          taskForEmail,
         );
 
         await emailService.sendEmail({
@@ -1655,9 +1737,8 @@ async function updateTask(req, res, next) {
       try {
         await PushNotificationService.sendToUser(task.reporter_id, {
           title: "Task Acknowledged",
-          body: `${task.assignee?.firstName || "Someone"} has acknowledged "${
-            task.title
-          }"`,
+          body: `${task.assignee?.firstName || "Someone"} has acknowledged "${task.title
+            }"`,
           icon: "/icons/notification-icon.png",
           badge: "/icons/notification-badge.png",
           data: {
@@ -1680,7 +1761,10 @@ async function updateTask(req, res, next) {
           `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
           task.assignee.username;
 
-        const emailHtml = taskArchiveTemplate(assigneeName, task);
+        const assigneeTimezone = task.assignee?.timezone || "Asia/Dubai";
+        const taskForEmail = createTaskWithConvertedDates(task, assigneeTimezone);
+
+        const emailHtml = taskArchiveTemplate(assigneeName, taskForEmail);
 
         await emailService.sendEmail({
           to: task.assignee.email,
@@ -1847,8 +1931,7 @@ async function addTaskAlert(req, res, next) {
     if (alertDate < task.start_date) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        `Alert date must be equal to or after task start date (${
-          task.start_date.toISOString().split("T")[0]
+        `Alert date must be equal to or after task start date (${task.start_date.toISOString().split("T")[0]
         })`,
       );
     }
@@ -1937,6 +2020,7 @@ async function addTaskComment(req, res, next) {
             firstName: true,
             lastName: true,
             email: true,
+            timezone: true,
           },
         },
         reporter: {
@@ -1945,6 +2029,7 @@ async function addTaskComment(req, res, next) {
             firstName: true,
             lastName: true,
             email: true,
+            timezone: true,
           },
         },
       },
@@ -1987,10 +2072,13 @@ async function addTaskComment(req, res, next) {
           `${comment.user.firstName} ${comment.user.lastName}`.trim() ||
           comment.user.username;
 
+        const assigneeTimezone = task.assignee?.timezone || "Asia/Dubai";
+        const taskForEmail = createTaskWithConvertedDates(task, assigneeTimezone);
+
         const emailHtml = taskCommentTemplate(
           assigneeName,
           commenterName,
-          task,
+          taskForEmail,
           content.trim(),
           false,
         );
@@ -2047,10 +2135,13 @@ async function addTaskComment(req, res, next) {
           `${comment.user.firstName} ${comment.user.lastName}`.trim() ||
           comment.user.username;
 
+        const reporterTimezone = task.reporter?.timezone || "Asia/Dubai";
+        const taskForEmail = createTaskWithConvertedDates(task, reporterTimezone);
+
         const emailHtml = taskCommentTemplate(
           reporterName,
           commenterName,
-          task,
+          taskForEmail,
           content.trim(),
           true,
         );
@@ -2376,4 +2467,8 @@ export {
   addTaskComment,
   deleteTaskComment,
   attachAttachmentToTask,
+  formatDateToUserTimezone,
+  formatTimeToUserTimezone,
+  createTaskWithConvertedDates,
+  formatChangesForEmail,
 };

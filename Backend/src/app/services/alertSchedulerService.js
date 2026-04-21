@@ -6,6 +6,7 @@ import {
   taskAlertTemplate,
   taskOverdueTemplate,
 } from "../../templates/emailTemplates.js";
+import { createTaskWithConvertedDates, formatDateToUserTimezone, formatTimeToUserTimezone } from "../modules/tasks.js";
 
 const prisma = new PrismaClient();
 
@@ -81,6 +82,7 @@ class AlertSchedulerService {
                   firstName: true,
                   lastName: true,
                   email: true,
+                  timezone: true,
                 },
               },
               reporter: {
@@ -89,6 +91,7 @@ class AlertSchedulerService {
                   firstName: true,
                   lastName: true,
                   email: true,
+                  timezone: true,
                 },
               },
             },
@@ -140,7 +143,13 @@ class AlertSchedulerService {
             `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
             "Team Member";
 
-          const emailHtml = taskAlertTemplate(assigneeName, task, alert);
+          // Convert task dates to assignee's timezone
+          const assigneeTimezone = task.assignee.timezone || "Asia/Dubai";
+          const taskForEmail = createTaskWithConvertedDates(task, assigneeTimezone);
+          const formattedAlertDate = formatDateToUserTimezone(alert.alert_date, assigneeTimezone);
+          const formattedAlertTime = formatTimeToUserTimezone(alert.alert_date, assigneeTimezone);
+
+          const emailHtml = taskAlertTemplate(assigneeName, taskForEmail, { alert_date: formattedAlertDate, alertTime: formattedAlertTime });
 
           await emailService.sendEmail({
             to: task.assignee.email,
@@ -195,7 +204,13 @@ class AlertSchedulerService {
             `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
             "Manager";
 
-          const emailHtml = taskAlertTemplate(reporterName, task, alert);
+          // Convert task dates to reporter's timezone
+          const reporterTimezone = task.reporter.timezone || "Asia/Dubai";
+          const taskForEmail = createTaskWithConvertedDates(task, reporterTimezone);
+          const formattedAlertDate = formatDateToUserTimezone(alert.alert_date, reporterTimezone);
+          const formattedAlertTime = formatTimeToUserTimezone(alert.alert_date, reporterTimezone);
+
+          const emailHtml = taskAlertTemplate(reporterName, taskForEmail, { alert_date: formattedAlertDate, alertTime: formattedAlertTime });
 
           await emailService.sendEmail({
             to: task.reporter.email,
@@ -283,6 +298,7 @@ class AlertSchedulerService {
               firstName: true,
               lastName: true,
               email: true,
+              timezone: true,
             },
           },
           reporter: {
@@ -291,6 +307,7 @@ class AlertSchedulerService {
               firstName: true,
               lastName: true,
               email: true,
+              timezone: true,
             },
           },
         },
@@ -331,7 +348,11 @@ class AlertSchedulerService {
             `${task.assignee.firstName} ${task.assignee.lastName}`.trim() ||
             "Team Member";
 
-          const emailHtml = taskOverdueTemplate(assigneeName, task, false);
+          // Convert task dates to assignee's timezone
+          const assigneeTimezone = task.assignee.timezone || "Asia/Dubai";
+          const taskForEmail = createTaskWithConvertedDates(task, assigneeTimezone);
+
+          const emailHtml = taskOverdueTemplate(assigneeName, taskForEmail, false);
 
           await emailService.sendEmail({
             to: task.assignee.email,
@@ -385,7 +406,11 @@ class AlertSchedulerService {
             `${task.reporter.firstName} ${task.reporter.lastName}`.trim() ||
             "Manager";
 
-          const emailHtml = taskOverdueTemplate(reporterName, task, true);
+          // Convert task dates to reporter's timezone
+          const reporterTimezone = task.reporter.timezone || "Asia/Dubai";
+          const taskForEmail = createTaskWithConvertedDates(task, reporterTimezone);
+
+          const emailHtml = taskOverdueTemplate(reporterName, taskForEmail, true);
 
           await emailService.sendEmail({
             to: task.reporter.email,

@@ -43,7 +43,13 @@ const Login = () => {
 
   const handleLogin = async (data: LoginFormInputs) => {
     try {
-      const res = await login(data).unwrap();
+      // Get user's timezone
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      const res = await login({
+        ...data,
+        timezone, // Send timezone with login payload
+      }).unwrap();
 
       if (res.message === "Login successful") {
         setUsername(data.username);
