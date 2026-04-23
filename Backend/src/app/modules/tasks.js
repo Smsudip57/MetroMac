@@ -257,13 +257,13 @@ async function createTask(req, res, next) {
 
     // Set submission_date if status is submitted (as ISO UTC)
     if (status === "submitted") {
-      taskData.submission_date = new Date(new Date().toISOString());
+      taskData.submission_date = new Date();
     }
 
     // If task is created with completed status, set both submission_date and completion_date to now
     // This handles the case where the creator/issuer directly marks task as completed (as ISO UTC)
     if (status === "completed") {
-      const now = new Date(new Date().toISOString());
+      const now = new Date();
       taskData.submission_date = now;
       taskData.completion_date = now;
     }
@@ -439,10 +439,7 @@ async function getTaskStats(req, res, next) {
             status: { not: "completed" },
             // Convert current time to UTC to match database timezone
             end_date: {
-              lt: new Date(
-                new Date(new Date().toISOString()).getTime() -
-                24 * 60 * 60 * 1000,
-              ),
+              lt: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
             },
           },
         }),
@@ -775,13 +772,13 @@ async function getTasks(req, res, next) {
     ]);
 
     // Check if end_date has passed and update status to pending if needed
-    // Convert to UTC to match database timezone
-    const now = new Date(new Date().toISOString());
+    const now = new Date();
     const updatedTasks = await Promise.all(
       tasks.map(async (task) => {
         // Add 24 hours to end_date so task is overdue only AFTER the due date ends
+        // Use UTC methods to ensure consistency regardless of server timezone
         const endDatePlusOneDay = new Date(task.end_date);
-        endDatePlusOneDay.setDate(endDatePlusOneDay.getDate() + 1);
+        endDatePlusOneDay.setUTCDate(endDatePlusOneDay.getUTCDate() + 1);
 
         // If end_date + 24 hours has passed and task is not completed or cancelled, update to pending
         if (
@@ -1180,11 +1177,18 @@ async function updateTask(req, res, next) {
       );
     }
 
-    if (isStatusSubmittedUpdate && !req.user.is_super_user && isAssigneeTryingToUpdateThatHeDidntCreate && new Date(currentTask.end_date).getTime() < new Date(new Date().toISOString()).getTime()) {
-      throw new ApiError(
-        StatusCodes.FORBIDDEN,
-        "Task overdue, can't submit!",
-      );
+    if (isStatusSubmittedUpdate && !req.user.is_super_user && isAssigneeTryingToUpdateThatHeDidntCreate) {
+      // Use UTC methods to ensure consistency regardless of server timezone
+      const endDatePlusOneDay = new Date(currentTask.end_date);
+      endDatePlusOneDay.setUTCDate(endDatePlusOneDay.getUTCDate() + 1);
+      const now = new Date();
+
+      if (endDatePlusOneDay < now) {
+        throw new ApiError(
+          StatusCodes.FORBIDDEN,
+          "Task overdue, can't submit!",
+        );
+      }
     }
 
     // Check archive permission - only reporter, creator, or super_user can archive
@@ -1218,13 +1222,13 @@ async function updateTask(req, res, next) {
       data.status = status;
       // Set submission_date when status changes to submitted (as ISO UTC)
       if (status === "submitted" && currentTask.status !== "submitted") {
-        data.submission_date = new Date(new Date().toISOString());
+        data.submission_date = new Date();
         data.completion_date = null;
       }
       // Set completion_date when status changes to completed (as ISO UTC)
       if (status === "completed" && currentTask.status !== "completed") {
-        data.submission_date = new Date(new Date().toISOString());
-        data.completion_date = new Date(new Date().toISOString());
+        data.submission_date = new Date();
+        data.completion_date = new Date();
       }
       // If status is on_hold, capture hold details
       if (status === "on_hold") {
