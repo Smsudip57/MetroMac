@@ -45,7 +45,7 @@ export default function AddEditTaskModal({
 }: AddEditTaskModalProps) {
   const [createTask, { isLoading: isCreating }] = useCreateTaskMutation();
   const [updateTask, { isLoading: isUpdating }] = useUpdateTaskMutation();
-  
+
   // Get current user from Redux
   const currentUser = useSelector((state: any) => state.auth.user);
   const currentUserId = currentUser?.id || currentUser?.user_id;
@@ -107,51 +107,51 @@ export default function AddEditTaskModal({
   const getDefaultValues = (editingTask: any) =>
     editingTask
       ? {
-          title: editingTask.title || "",
-          description: editingTask.description || "",
-          status: {
-            value: editingTask.status || "assigned",
-            label: editingTask.status
-              ? editingTask.status.charAt(0).toUpperCase() +
-                editingTask.status.slice(1).replace(/_/g, " ")
-              : "Assigned",
-          },
-          hold_reason: editingTask.hold_reason || "",
-          alert_frequency: editingTask.taskAlerts?.length || 0,
-          // Set reporter_id from editing task
-          reporter_id:
-            editingTask.reporter_id && editingTask.reporter
-              ? {
-                  value: editingTask.reporter_id.toString(),
-                  label: `${editingTask.reporter.firstName} ${editingTask.reporter.lastName}`,
-                }
-              : null,
-          // Only set assigned_to if there's an actual assignee (not null)
-          assigned_to:
-            editingTask.assigned_to && editingTask.assignee
-              ? {
-                  value: editingTask.assigned_to.toString(),
-                  label: `${editingTask.assignee.firstName} ${editingTask.assignee.lastName}`,
-                }
-              : null,
-          start_date: editingTask.start_date
-            ? new Date(editingTask.start_date).toISOString()
-            : "",
-          end_date: editingTask.end_date
-            ? new Date(editingTask.end_date).toISOString()
-            : "",
-        }
+        title: editingTask.title || "",
+        description: editingTask.description || "",
+        status: {
+          value: editingTask.status || "assigned",
+          label: editingTask.status
+            ? editingTask.status.charAt(0).toUpperCase() +
+            editingTask.status.slice(1).replace(/_/g, " ")
+            : "Assigned",
+        },
+        hold_reason: editingTask.hold_reason || "",
+        alert_frequency: editingTask.taskAlerts?.length || 0,
+        // Set reporter_id from editing task
+        reporter_id:
+          editingTask.reporter_id && editingTask.reporter
+            ? {
+              value: editingTask.reporter_id.toString(),
+              label: `${editingTask.reporter.firstName} ${editingTask.reporter.lastName}`,
+            }
+            : null,
+        // Only set assigned_to if there's an actual assignee (not null)
+        assigned_to:
+          editingTask.assigned_to && editingTask.assignee
+            ? {
+              value: editingTask.assigned_to.toString(),
+              label: `${editingTask.assignee.firstName} ${editingTask.assignee.lastName}`,
+            }
+            : null,
+        start_date: editingTask.start_date
+          ? new Date(editingTask.start_date).toISOString()
+          : "",
+        end_date: editingTask.end_date
+          ? new Date(editingTask.end_date).toISOString()
+          : "",
+      }
       : {
-          title: "",
-          description: "",
-          status: { value: "assigned", label: "Assigned" },
-          hold_reason: "",
-          alert_frequency: 0,
-          reporter_id: null,
-          assigned_to: null,
-          start_date: "",
-          end_date: "",
-        };
+        title: "",
+        description: "",
+        status: { value: "assigned", label: "Assigned" },
+        hold_reason: "",
+        alert_frequency: 0,
+        reporter_id: null,
+        assigned_to: null,
+        start_date: "",
+        end_date: "",
+      };
 
   const methods = useForm({
     resolver: async (data) => {
@@ -192,10 +192,10 @@ export default function AddEditTaskModal({
   const currentStatus =
     typeof statusValue === "object" ? statusValue?.value : statusValue;
   const formAlertFrequency = alertFormMethods.watch("alert_frequency") || 0;
-  
+
   // Watch the assigned_to field to determine available status options
   const assignedToValue = methods.watch("assigned_to");
-  const assignedToUserId = assignedToValue?.value 
+  const assignedToUserId = assignedToValue?.value
     ? parseInt(assignedToValue.value)
     : null;
 
@@ -657,7 +657,7 @@ export default function AddEditTaskModal({
           </Button>
           <CustomSideWindow
             open={open || false}
-            onOpenChange={setOpen || (() => {})}
+            onOpenChange={setOpen || (() => { })}
             className="!px-0"
             initialWidth={width}
             maxWidth={width}
@@ -678,11 +678,10 @@ export default function AddEditTaskModal({
                   </p>
                 </div>
                 <div
-                  className={` flex flex-col gap-4 ${
-                    isMobile
+                  className={` flex flex-col gap-4 ${isMobile
                       ? "!max-h-[calc(100vh-140px)]"
                       : "!max-h-[calc(80vh-160px)]"
-                  } overflow-y-auto pr-6 pt-4`}
+                    } overflow-y-auto pr-6 pt-4`}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="md:col-span-3">
@@ -821,22 +820,20 @@ export default function AddEditTaskModal({
                         <button
                           type="button"
                           onClick={() => setAlertMode("manual")}
-                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
-                            alertMode === "manual"
+                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "manual"
                               ? "bg-primary text-white"
                               : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                          }`}
+                            }`}
                         >
                           Manual Add
                         </button>
                         <button
                           type="button"
                           onClick={() => setAlertMode("auto")}
-                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
-                            alertMode === "auto"
+                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "auto"
                               ? "bg-primary text-white"
                               : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                          }`}
+                            }`}
                         >
                           Auto-Generate
                         </button>
@@ -929,7 +926,7 @@ export default function AddEditTaskModal({
             <span className="flex items-center gap-1">Add Task</span>
           }
           resolver={schema}
-          onSubmit={() => {}}
+          onSubmit={() => { }}
           open={open}
           onOpenChange={setOpen}
           form={
@@ -949,11 +946,10 @@ export default function AddEditTaskModal({
                   </p>
                 </div>
                 <div
-                  className={` flex flex-col gap-4 ${
-                    isMobile
+                  className={` flex flex-col gap-4 ${isMobile
                       ? "!max-h-[calc(100vh-140px)]"
                       : "!max-h-[calc(80vh-160px)]"
-                  } overflow-y-auto pr-6 pt-4`}
+                    } overflow-y-auto pr-6 pt-4`}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="md:col-span-3">
@@ -1092,22 +1088,20 @@ export default function AddEditTaskModal({
                         <button
                           type="button"
                           onClick={() => setAlertMode("manual")}
-                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
-                            alertMode === "manual"
+                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "manual"
                               ? "bg-primary text-white"
                               : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                          }`}
+                            }`}
                         >
                           Manual Add
                         </button>
                         <button
                           type="button"
                           onClick={() => setAlertMode("auto")}
-                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
-                            alertMode === "auto"
+                          className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${alertMode === "auto"
                               ? "bg-primary text-white"
                               : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                          }`}
+                            }`}
                         >
                           Auto-Generate
                         </button>
