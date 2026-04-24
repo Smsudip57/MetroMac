@@ -29,12 +29,15 @@ class AlertSchedulerService {
 
       // Run once daily at 9 AM for overdue task notifications
       // 0 9 * * * (at 09:00 every day)
-      this.overdueCheckCronJob = cron.schedule("0 9 * * *", async () => {
+      this.overdueCheckCronJob = cron.schedule("30 3 * * *", async () => {
         await this.checkAndSendOverdueNotifications();
+      }, {
+        scheduled: true,
+        timezone: "UTC" // This forces the 0 9 * * * to be UTC
       });
 
       console.log(
-        "[AlertScheduler] Overdue check initialized - running daily at 9 AM"
+        "[AlertScheduler] Overdue check initialized - running daily at 7:30 AM uae" 
       );
       return this.cronJob;
     } catch (error) {
@@ -271,12 +274,13 @@ class AlertSchedulerService {
       console.log("[AlertScheduler] Checking for overdue tasks...");
 
       // Get today at 00:00:00
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+     const now = new Date();
 
-      // Get yesterday at 00:00:00
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
+      // The "End" of our 24-hour window (24 hours ago)
+      const windowEnd = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+
+      // The "Start" of our 24-hour window (48 hours ago)
+      const windowStart = new Date(now.getTime() - (48 * 60 * 60 * 1000));
 
       // Find all non-archived tasks that just became overdue today
       // (end_date is yesterday, meaning task ended yesterday and is now overdue)
@@ -287,8 +291,8 @@ class AlertSchedulerService {
             not: "completed", // Don't notify for completed tasks
           },
           end_date: {
-            gte: yesterday, // From yesterday 00:00:00
-            lt: today, // To today 00:00:00 (so only yesterday's dates)
+            gte: windowStart, // From 48 hours ago
+            lt: windowEnd, // To 24 hours ago (so only the previous day's dates)
           },
         },
         include: {

@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import CustomModal from "@/components/reuseable/Shared/CustomModal";
 import CustomSideWindow from "@/components/reuseable/Shared/CustomSideWindow";
 import { useWindowSize } from "@/hooks/useWindowSize";
@@ -44,6 +45,10 @@ export default function AddEditTaskModal({
 }: AddEditTaskModalProps) {
   const [createTask, { isLoading: isCreating }] = useCreateTaskMutation();
   const [updateTask, { isLoading: isUpdating }] = useUpdateTaskMutation();
+  
+  // Get current user from Redux
+  const currentUser = useSelector((state: any) => state.auth.user);
+  const currentUserId = currentUser?.id || currentUser?.user_id;
 
   // Alerts state management
   const [alerts, setAlerts] = useState<TaskAlert[]>([]);
@@ -84,7 +89,20 @@ export default function AddEditTaskModal({
     .refine((data) => new Date(data.start_date) <= new Date(data.end_date), {
       message: "End date must be same or after start date",
       path: ["end_date"],
-    });
+    })
+    .refine(
+      (data) => {
+        // If status is "submitted", the assigned_to user must be the current user
+        if (data.status === "submitted") {
+          return data.assigned_to === currentUserId;
+        }
+        return true;
+      },
+      {
+        message: "Only if you're the assigned person then you can set status to 'Submitted'",
+        path: ["status"],
+      }
+    );
 
   const getDefaultValues = (editingTask: any) =>
     editingTask
@@ -174,6 +192,12 @@ export default function AddEditTaskModal({
   const currentStatus =
     typeof statusValue === "object" ? statusValue?.value : statusValue;
   const formAlertFrequency = alertFormMethods.watch("alert_frequency") || 0;
+  
+  // Watch the assigned_to field to determine available status options
+  const assignedToValue = methods.watch("assigned_to");
+  const assignedToUserId = assignedToValue?.value 
+    ? parseInt(assignedToValue.value)
+    : null;
 
   // Reset form values when editingTask changes
   useEffect(() => {
@@ -290,6 +314,15 @@ export default function AddEditTaskModal({
     { value: "completed", label: "Completed" },
     { value: "cancelled", label: "Cancelled" },
   ];
+
+  // Filter status options: hide "submitted" unless assignee is current user
+  const availableStatusOptions = statusOptions.filter((option) => {
+    if (option.value === "submitted") {
+      // Only show "submitted" if the assignee is the current user
+      return assignedToUserId === currentUserId;
+    }
+    return true;
+  });
 
   // Handle adding a new alert
   const handleAddAlert = () => {
@@ -692,7 +725,7 @@ export default function AddEditTaskModal({
                     <SearchSelectHF
                       name="status"
                       label="Status"
-                      options={statusOptions}
+                      options={availableStatusOptions}
                       required
                       disabled={isLoading}
                       searchable
@@ -963,7 +996,7 @@ export default function AddEditTaskModal({
                     <SearchSelectHF
                       name="status"
                       label="Status"
-                      options={statusOptions}
+                      options={availableStatusOptions}
                       required
                       disabled={isLoading}
                       searchable
