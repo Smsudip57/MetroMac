@@ -1177,19 +1177,20 @@ async function updateTask(req, res, next) {
       );
     }
 
-    if (isStatusSubmittedUpdate && !req.user.is_super_user && isAssigneeTryingToUpdateThatHeDidntCreate) {
-      // Use UTC methods to ensure consistency regardless of server timezone
-      const endDatePlusOneDay = new Date(currentTask.end_date);
-      endDatePlusOneDay.setUTCDate(endDatePlusOneDay.getUTCDate() + 1);
-      const now = new Date();
+    // Disabled per client request: assignees may submit after due date
+    // if (isStatusSubmittedUpdate && !req.user.is_super_user && isAssigneeTryingToUpdateThatHeDidntCreate) {
+    //   // Use UTC methods to ensure consistency regardless of server timezone
+    //   const endDatePlusOneDay = new Date(currentTask.end_date);
+    //   endDatePlusOneDay.setUTCDate(endDatePlusOneDay.getUTCDate() + 1);
+    //   const now = new Date();
 
-      if (endDatePlusOneDay < now) {
-        throw new ApiError(
-          StatusCodes.FORBIDDEN,
-          "Task overdue, can't submit!",
-        );
-      }
-    }
+    //   if (endDatePlusOneDay < now) {
+    //     throw new ApiError(
+    //       StatusCodes.FORBIDDEN,
+    //       "Task overdue, can't submit!",
+    //     );
+    //   }
+    // }
 
     // Check archive permission - only reporter, creator, or super_user can archive
     let isArchiving = false;
