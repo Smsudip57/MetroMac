@@ -108,17 +108,14 @@ export default function TasksTable({
   const [updateTask] = useUpdateTaskMutation?.() || [];
   const [deleteTaskAlert] = useDeleteTaskAlertMutation?.() || [];
 
-  // Check if task is overdue (but not if it's completed)
-  // Task is overdue AFTER the due date has fully passed (i.e., after 24 hours from end_date)
+  // Overdue after end_date + 1 UTC day; includes submitted tasks awaiting review
   const isTaskOverdue = (task: any) => {
     if (task.status === "completed" || !task.end_date) return false;
 
     const endDatePlusOneDay = new Date(task.end_date);
-    endDatePlusOneDay.setDate(endDatePlusOneDay.getDate() + 1);
+    endDatePlusOneDay.setUTCDate(endDatePlusOneDay.getUTCDate() + 1);
 
-    // Convert current time to UTC to match database timezone
-    const now = new Date(new Date().toISOString());
-    return endDatePlusOneDay < now;
+    return endDatePlusOneDay < new Date();
   };
 
   // Handle sorting
@@ -133,10 +130,7 @@ export default function TasksTable({
       key: "serial",
       header: "S/L",
       cell: (item: any, index: number) => (
-        <span
-          className={`font-medium ${isTaskOverdue(item) ? "text-red-600" : "text-[#747382]"
-            }`}
-        >
+        <span className="font-medium text-[#747382]">
           {(currentPage - 1) * pageSize + index}
         </span>
       ),
@@ -148,8 +142,7 @@ export default function TasksTable({
       sortable: true,
       cell: (item: any) => (
         <TableSingleItem
-          className={`inline-block !min-w-28 ${isTaskOverdue(item) ? "!text-red-600" : ""
-            }`}
+          className="inline-block !min-w-28"
           value={item.title}
           onClick={() => handleView(item)}
         />
@@ -163,8 +156,7 @@ export default function TasksTable({
         <TableSingleItem
           value={item.description || "-"}
           onClick={() => { }}
-          className={`!line-clamp-2 inline-block !max-w-64 ${isTaskOverdue(item) ? "!text-red-600" : ""
-            }`}
+          className="!line-clamp-2 inline-block !max-w-64"
         />
       ),
     },
@@ -177,11 +169,7 @@ export default function TasksTable({
           item.status?.charAt(0).toUpperCase() +
           item.status?.slice(1).replace(/_/g, " ");
         return (
-          <TableStatus
-            statusName={statusLabel || "-"}
-            textColor={isTaskOverdue(item) ? "#dc2626" : undefined}
-            className={isTaskOverdue(item) ? "!bg-red-100" : ""}
-          />
+          <TableStatus statusName={statusLabel || "-"} />
         );
       },
       width: 120,
@@ -199,8 +187,6 @@ export default function TasksTable({
               : "-"
           }
           className="min-w-max"
-          TitleClassName={isTaskOverdue(item) ? "!text-red-600" : ""}
-          subtitleClassName={isTaskOverdue(item) ? "!text-red-600" : ""}
           subtitle={item.assignee?.username || ""}
         />
       ),
@@ -218,8 +204,6 @@ export default function TasksTable({
               : "-"
           }
           className="min-w-max"
-          TitleClassName={isTaskOverdue(item) ? "!text-red-600" : ""}
-          subtitleClassName={isTaskOverdue(item) ? "!text-red-600" : ""}
           subtitle={item.reporter?.username || ""}
         />
       ),
@@ -232,13 +216,7 @@ export default function TasksTable({
         const startDate = item.start_date
           ? formatDate.getDate(item.start_date)
           : "-";
-        return (
-          <span
-            className={`text-sm ${isTaskOverdue(item) ? "text-red-600" : ""}`}
-          >
-            {startDate}
-          </span>
-        );
+        return <span className="text-sm">{startDate}</span>;
       },
       width: 120,
     },
@@ -250,8 +228,7 @@ export default function TasksTable({
         const endDate = item.end_date ? formatDate.getDate(item.end_date) : "-";
         return (
           <span
-            className={`text-sm font-semibold ${isTaskOverdue(item) ? "text-red-600" : ""
-              }`}
+            className="text-sm font-semibold"
             title={isTaskOverdue(item) ? "Overdue" : ""}
           >
             {endDate}
@@ -268,13 +245,7 @@ export default function TasksTable({
         const createdDate = item.created_at
           ? formatDate.getDate(item.created_at)
           : "-";
-        return (
-          <span
-            className={`text-sm ${isTaskOverdue(item) ? "text-red-600" : ""}`}
-          >
-            {createdDate}
-          </span>
-        );
+        return <span className="text-sm">{createdDate}</span>;
       },
       width: 140,
     },
@@ -290,11 +261,7 @@ export default function TasksTable({
         ) {
           const submissionDate = formatDate.getDate(item.submission_date);
           return (
-            <span
-              className={`text-sm ${isTaskOverdue(item) ? "text-red-600" : ""}`}
-            >
-              {submissionDate}
-            </span>
+            <span className="text-sm">{submissionDate}</span>
           );
         }
         return <span className="text-sm text-text_highlight">-</span>;
@@ -310,11 +277,7 @@ export default function TasksTable({
         if (item.status === "completed" && item.completion_date) {
           const completionDate = formatDate.getDate(item.completion_date);
           return (
-            <span
-              className={`text-sm ${isTaskOverdue(item) ? "text-red-600" : ""}`}
-            >
-              {completionDate}
-            </span>
+            <span className="text-sm">{completionDate}</span>
           );
         }
         return <span className="text-sm text-text_highlight">-</span>;
@@ -340,7 +303,7 @@ export default function TasksTable({
             className={`inline-flex items-center gap-2 px-3 py-1.5 border rounded-full transition-colors ${alertCount > 0
               ? "bg-primary/10 border-primary/20 text-primary hover:bg-primary/15"
               : "bg-gray-100 border-gray-200 text-gray-400 hover:bg-gray-200"
-              } ${isTaskOverdue(item) ? "!text-red-600" : ""}`}
+              }`}
           >
             {alertCount > 0 && (
               <span className="text-xs font-semibold">{alertCount}</span>
@@ -553,6 +516,9 @@ export default function TasksTable({
               columns={columns}
               isLoading={isLoading}
               showColumnDividers={true}
+              getRowClassName={(item) =>
+                isTaskOverdue(item) ? "!bg-red-50 hover:!bg-red-50" : ""
+              }
               options={{
                 actions: {
                   view: true,

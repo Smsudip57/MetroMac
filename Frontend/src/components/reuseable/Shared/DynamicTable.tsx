@@ -96,6 +96,7 @@ interface DynamicTableProps {
   showColumnDividers?: boolean;
   // Custom icons for actions
   icons?: IconConfig;
+  getRowClassName?: (item: any) => string;
 }
 
 export function DynamicTable({
@@ -116,6 +117,7 @@ export function DynamicTable({
   onSort,
   showColumnDividers = false,
   icons = {},
+  getRowClassName,
 }: DynamicTableProps) {
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
 
@@ -281,7 +283,10 @@ export function DynamicTable({
                 data?.map((item: any, index: number) => (
                   <TableRow
                     key={item.id || index}
-                    className={`  border-b border-black !ml-6`}
+                    className={cn(
+                      "border-b border-black !ml-6",
+                      getRowClassName?.(item),
+                    )}
                   >
                     {options.selectable && (
                       <TableCell className="w-[50px] pl-6 align-middle ">

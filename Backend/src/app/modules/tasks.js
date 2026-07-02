@@ -780,11 +780,12 @@ async function getTasks(req, res, next) {
         const endDatePlusOneDay = new Date(task.end_date);
         endDatePlusOneDay.setUTCDate(endDatePlusOneDay.getUTCDate() + 1);
 
-        // If end_date + 24 hours has passed and task is not completed or cancelled, update to pending
+        // If end_date + 24 hours has passed, update to pending unless already in a terminal/workflow state
         if (
           endDatePlusOneDay < now &&
           task.status !== "completed" &&
-          task.status !== "cancelled"
+          task.status !== "cancelled" &&
+          task.status !== "submitted"
         ) {
           return await prisma.task.update({
             where: { id: task.id },
