@@ -183,6 +183,56 @@ export async function preventSuperUserDeletion(userId) {
   return true;
 }
 
+// Seed Admin role (internal) with all permissions — can see all tasks & manage users
+export async function seedAdminRole() {
+  try {
+    let adminRole = await prisma.role.findFirst({
+      where: { name: { equals: "Admin", mode: "insensitive" } },
+    });
+
+    if (!adminRole) {
+      adminRole = await prisma.role.create({
+        data: { name: "Admin", type: "internal" },
+      });
+      console.log("\x1b[32mAdmin role created\x1b[0m");
+    } else if (adminRole.name !== "Admin") {
+      adminRole = await prisma.role.update({
+        where: { id: adminRole.id },
+        data: { name: "Admin", type: "internal" },
+      });
+      console.log("\x1b[32mAdmin role normalized\x1b[0m");
+    } else {
+      console.log("\x1b[33mAdmin role already exists\x1b[0m");
+    }
+
+    const allPermissions = await prisma.permission.findMany({
+      select: { id: true },
+    });
+
+    await prisma.rolePermission.deleteMany({
+      where: { role_id: adminRole.id },
+    });
+
+    if (allPermissions.length > 0) {
+      await prisma.rolePermission.createMany({
+        data: allPermissions.map((p) => ({
+          role_id: adminRole.id,
+          permission_id: p.id,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    console.log(
+      `\x1b[32mAdmin role synced with ${allPermissions.length} permissions\x1b[0m`,
+    );
+    return adminRole;
+  } catch (error) {
+    console.error("Error seeding Admin role:", error.message);
+    throw error;
+  }
+}
+
 // Seed GeneralSetting with type 'local'
 export async function seedGeneralSetting() {
   try {
@@ -279,8 +329,9 @@ export async function seedSetup() {
 
     console.log("Seeded modules and permissions from data.json");
 
-    // Seed super user and general settings
+    // Seed super user, Admin role (full permissions), and general settings
     await seedSuperUser();
+    await seedAdminRole();
     await seedGeneralSetting();
 
     console.log("\x1b[32mAll essential data seeded successfully! 🎉\x1b[0m");

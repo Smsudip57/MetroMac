@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import ApiError from "../../errors/ApiError.js";
 import { StatusCodes } from "http-status-codes";
 import ResponseFormatter from "../../helpers/responseFormater.js";
+import { canAssignAdminRole, isAdminRole } from "../../helpers/roleHelpers.js";
 
 const prisma = new PrismaClient();
 
@@ -18,6 +19,12 @@ async function createRole(req, res, next) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
         "Role type is required and must be 'internal' or 'external'"
+      );
+    }
+    if (isAdminRole(name) && !canAssignAdminRole(req.user)) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        "Only Admin users can create the Admin role"
       );
     }
     const existingRole = await prisma.role.findUnique({
@@ -123,6 +130,15 @@ async function updateRole(req, res, next) {
     if (!existingRole) {
       throw new ApiError(StatusCodes.NOT_FOUND, "Role not found");
     }
+    if (
+      (isAdminRole(existingRole) || isAdminRole(name)) &&
+      !canAssignAdminRole(req.user)
+    ) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        "Only Admin users can modify the Admin role"
+      );
+    }
     const nameExists = await prisma.role.findFirst({
       where: { name: name.trim(), id: { not: parseInt(id) } },
     });
@@ -153,6 +169,12 @@ async function deleteRole(req, res, next) {
     });
     if (!role) {
       throw new ApiError(StatusCodes.NOT_FOUND, "Role not found");
+    }
+    if (isAdminRole(role) && !canAssignAdminRole(req.user)) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        "Only Admin users can delete the Admin role"
+      );
     }
     if (role._count.users > 0) {
       throw new ApiError(

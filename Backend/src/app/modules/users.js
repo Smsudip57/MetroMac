@@ -3,8 +3,33 @@ import bcrypt from "bcrypt";
 import { UserStatsQueryBuilder } from "../../helpers/usersStatHelper.js";
 import { FileManager } from "../../helpers/FilleManager.js";
 import config from "../../config/index.js";
+import {
+  canAssignAdminRole,
+  isAdminRole,
+} from "../../helpers/roleHelpers.js";
 
 const prisma = new PrismaClient();
+
+async function assertCanAssignRole(req, roleId) {
+  if (!roleId) return;
+  const role = await prisma.role.findUnique({
+    where: { id: parseInt(roleId) },
+    select: { id: true, name: true, type: true },
+  });
+  if (!role) {
+    const err = new Error("Invalid role_id provided.");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (isAdminRole(role) && !canAssignAdminRole(req.user)) {
+    const err = new Error(
+      "Only Admin users can create or assign the Admin role.",
+    );
+    err.statusCode = 403;
+    throw err;
+  }
+  return role;
+}
 
 // Get all users with role (with pagination and search)
 async function getUsers(req, res, next) {
@@ -238,21 +263,19 @@ async function createUser(req, res, next) {
       });
     }
 
-    // If role_id is provided, check if it's an external role type
+    // If role_id is provided, validate role + Admin assignment rules
     let finalCompanyName = null;
     let finalCompanyAddress = null;
     let finalProfileImage = profileImage;
 
     if (role_id) {
-      const role = await prisma.role.findUnique({
-        where: { id: role_id },
-        select: { type: true },
-      });
-
-      if (!role) {
-        return res.status(400).json({
+      let role;
+      try {
+        role = await assertCanAssignRole(req, role_id);
+      } catch (roleError) {
+        return res.status(roleError.statusCode || 400).json({
           success: false,
-          message: "Invalid role_id provided.",
+          message: roleError.message,
         });
       }
 
@@ -419,7 +442,17 @@ async function updateUser(req, res, next) {
     if (twoFactorEnabled !== undefined)
       data.twoFactorEnabled = twoFactorEnabled;
     if (twoFactorType !== undefined) data.twoFactorType = twoFactorType;
-    if (role_id !== undefined) data.role_id = role_id;
+    if (role_id !== undefined) {
+      try {
+        await assertCanAssignRole(req, role_id);
+      } catch (roleError) {
+        return res.status(roleError.statusCode || 400).json({
+          success: false,
+          message: roleError.message,
+        });
+      }
+      data.role_id = role_id;
+    }
 
     // Handle company fields - only for external role type
     if (company_name !== undefined || company_address !== undefined) {

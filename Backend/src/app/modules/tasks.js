@@ -20,6 +20,11 @@ import {
   taskUnassignmentTemplate,
   buildTaskUpdateEmailHtml,
 } from "../../templates/emailTemplates.js";
+import {
+  canViewAllTasks,
+  isRestrictedTaskRole,
+  isAdminRole,
+} from "../../helpers/roleHelpers.js";
 
 const prisma = new PrismaClient();
 
@@ -405,15 +410,14 @@ async function createTask(req, res, next) {
 // Get task statistics
 async function getTaskStats(req, res, next) {
   try {
-    const isManager =
-      req?.user?.role?.toLowerCase() === "manager" ||
-      req?.user?.role?.toLowerCase() === "employee";
-
     // Base where clause
     const baseWhere = { is_archived: false };
 
-    // Manager role filter - can only see tasks they're reporting or assigned to
-    if (isManager) {
+    // Manager/Employee see only their tasks; Admin + super user see all
+    if (
+      isRestrictedTaskRole(req?.user?.role) &&
+      !canViewAllTasks(req?.user?.role, req?.user?.is_super_user)
+    ) {
       baseWhere.OR = [
         { reporter_id: req.user.id },
         { assigned_to: req.user.id },
@@ -468,17 +472,17 @@ async function getTaskStats(req, res, next) {
 // Used by both getTasks endpoint and exportData function
 function buildTaskFilters(filters, userId, userRole, userIsSuperUser) {
   let where = { is_archived: false };
-  const isManager =
-    userRole?.toLowerCase() === "manager" ||
-    userRole?.toLowerCase() === "employee";
 
-  // Super users can view archived tasks if requested
+  // Super users / Admin can view archived tasks if requested
   if (filters.showArchived === "true") {
     where.is_archived = true;
   }
 
-  // Manager role filter - can only see tasks they created or are assigned to
-  if (isManager && !userIsSuperUser) {
+  // Manager/Employee see only their tasks; Admin + super user see all (list + export)
+  if (
+    isRestrictedTaskRole(userRole) &&
+    !canViewAllTasks(userRole, userIsSuperUser)
+  ) {
     where.OR = [
       { reporter_id: userId },
       { assigned_to: userId },
@@ -1193,11 +1197,12 @@ async function updateTask(req, res, next) {
     //   }
     // }
 
-    // Check archive permission - only reporter, creator, or super_user can archive
+    // Check archive permission - reporter, creator, manager, admin, or super_user
     let isArchiving = false;
     if (req.body.is_archived !== undefined && req.body.is_archived === true) {
       const canArchive =
         req?.user?.is_super_user ||
+        isAdminRole(req.user?.role) ||
         req.user?.role?.toLowerCase() === "manager" ||
         req.user?.id === currentTask.created_by ||
         req.user?.id === currentTask.reporter_id;
@@ -1926,7 +1931,11 @@ async function addTaskAlert(req, res, next) {
       throw new ApiError(StatusCodes.NOT_FOUND, "Task not found");
     }
 
-    if (!req.user.is_super_user && req.user.id !== task.reporter_id) {
+    if (
+      !req.user.is_super_user &&
+      !isAdminRole(req.user?.role) &&
+      req.user.id !== task.reporter_id
+    ) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
         "Not authorized to add alert to this task",
@@ -1979,7 +1988,11 @@ async function deleteTaskAlert(req, res, next) {
     if (!task) {
       throw new ApiError(StatusCodes.NOT_FOUND, "Task not found");
     }
-    if (!req.user.is_super_user && req.user.id !== task.reporter_id) {
+    if (
+      !req.user.is_super_user &&
+      !isAdminRole(req.user?.role) &&
+      req.user.id !== task.reporter_id
+    ) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
         "Not authorized to delete alert from this task",

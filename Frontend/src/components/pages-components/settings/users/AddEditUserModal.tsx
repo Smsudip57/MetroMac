@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 
 import CustomModal from "@/components/reuseable/Shared/CustomModal";
 import CustomSideWindow from "@/components/reuseable/Shared/CustomSideWindow";
@@ -19,6 +19,7 @@ import { useGetRolesQuery } from "@/redux/api/settings/constants/rolesApi";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useAppSelector } from "@/lib/hooks";
 
 type AddEditUserModalProps = {
   searchTerm: string;
@@ -29,6 +30,15 @@ type AddEditUserModalProps = {
   open?: boolean;
   setOpen?: (open: boolean) => void;
 };
+
+function getCurrentUserRoleName(user: any): string | null {
+  if (!user?.role) return null;
+  if (typeof user.role === "string") return user.role.toLowerCase();
+  if (typeof user.role === "object" && user.role.name) {
+    return String(user.role.name).toLowerCase();
+  }
+  return null;
+}
 
 export default function AddEditUserModal({
   searchTerm,
@@ -41,6 +51,10 @@ export default function AddEditUserModal({
 }: AddEditUserModalProps) {
   const [createUser, { isLoading: isCreating }] = useCreateUserMutation();
   const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
+  const { user: currentUser } = useAppSelector((state) => state.auth);
+  const canAssignAdmin =
+    Boolean(currentUser?.is_super_user) ||
+    getCurrentUserRoleName(currentUser) === "admin";
 
   // Zod schema for validation
   const schema = z.object({
@@ -229,12 +243,20 @@ export default function AddEditUserModal({
     name: "is_suspended",
   }) as boolean;
 
-  // Map API data to SearchSelectHF options
-  const roleOptions = (rolesData?.data || []).map((r: any) => ({
-    value: r.id,
-    label: r.name,
-    ...r,
-  }));
+  // Map API data to SearchSelectHF options.
+  // Only Admin / super users may assign the Admin role.
+  const roleOptions = useMemo(() => {
+    return (rolesData?.data || [])
+      .filter((r: any) => {
+        const isAdmin = String(r.name || "").toLowerCase() === "admin";
+        return !isAdmin || canAssignAdmin;
+      })
+      .map((r: any) => ({
+        value: r.id,
+        label: r.name,
+        ...r,
+      }));
+  }, [rolesData?.data, canAssignAdmin]);
 
   const isLoading = editingUser ? isUpdating : isCreating;
   const { width } = useWindowSize();
