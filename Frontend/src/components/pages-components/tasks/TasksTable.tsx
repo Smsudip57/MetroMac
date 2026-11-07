@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 
 type TasksTableProps = {
   searchTerm: string;
-  statusFilter?: string;
+  statusFilter?: string[];
   onEditTask?: (task: any) => void;
   type?: "archive" | "normal"; // 'archive' for archive mode, 'normal' for delete mode
   dateFilters?: {
@@ -90,7 +90,7 @@ export default function TasksTable({
       page: currentPage,
       limit: pageSize,
       search: debouncedSearch || undefined,
-      status: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
+      status: statusFilter?.length ? statusFilter.join(",") : undefined,
       assigned_to: dateFilters?.assignedTo
         ? parseInt(dateFilters.assignedTo)
         : undefined,

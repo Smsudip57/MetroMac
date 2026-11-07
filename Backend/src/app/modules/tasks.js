@@ -503,21 +503,34 @@ function buildTaskFilters(filters, userId, userRole, userIsSuperUser) {
     }
   }
 
-  // Status filter
-  if (
-    filters.status &&
-    [
-      "pending",
-      "assigned",
-      "submitted",
-      "acknowledged",
-      "on_hold",
-      "rework",
-      "completed",
-      "cancelled",
-    ].includes(filters.status)
-  ) {
-    where.status = filters.status;
+  // Status filter — single value, comma-separated, or array
+  const ALLOWED_STATUSES = [
+    "pending",
+    "assigned",
+    "submitted",
+    "acknowledged",
+    "on_hold",
+    "rework",
+    "completed",
+    "cancelled",
+  ];
+  if (filters.status) {
+    const raw = Array.isArray(filters.status)
+      ? filters.status
+      : String(filters.status).split(",");
+    const statuses = [
+      ...new Set(
+        raw
+          .flatMap((s) => String(s).split(","))
+          .map((s) => s.trim().toLowerCase())
+          .filter((s) => ALLOWED_STATUSES.includes(s)),
+      ),
+    ];
+    if (statuses.length === 1) {
+      where.status = statuses[0];
+    } else if (statuses.length > 1) {
+      where.status = { in: statuses };
+    }
   }
 
   // Assigned to filter

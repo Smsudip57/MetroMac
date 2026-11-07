@@ -6,7 +6,6 @@ import FilterTaskModal from "./FilterTaskModal";
 import ContainerWrapper from "@/components/reuseable/wrapper/ContainerWrapper";
 import CustomStatsCard from "@/components/reuseable/Shared/CustomStatsCard";
 import SearchField from "@/components/reuseable/Shared/SearchField";
-import CustomTab from "@/components/reuseable/Shared/CustomTab";
 import ImportExport from "@/components/reuseable/ImportExport";
 import { useGetTaskStatsQuery } from "@/redux/api/tasks/taskApi";
 import { useAppSelector } from "@/lib/hooks";
@@ -19,7 +18,6 @@ type TasksProps = {
 
 export default function Tasks({ type = "normal" }: TasksProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
   const [dateFilters, setDateFilters] = useState({
@@ -27,6 +25,7 @@ export default function Tasks({ type = "normal" }: TasksProps) {
     toDate: "",
     assignedTo: "",
     reporterId: "",
+    statuses: [] as string[],
   });
   const filterButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -52,12 +51,14 @@ export default function Tasks({ type = "normal" }: TasksProps) {
     toDate?: string;
     assignedTo?: string;
     reporterId?: string;
+    statuses?: string[];
   }) => {
     setDateFilters({
       fromDate: filters.fromDate || "",
       toDate: filters.toDate || "",
       assignedTo: filters.assignedTo || "",
       reporterId: filters.reporterId || "",
+      statuses: filters.statuses || [],
     });
   };
 
@@ -69,8 +70,8 @@ export default function Tasks({ type = "normal" }: TasksProps) {
       formattedFilters.search = searchTerm;
     }
 
-    if (statusFilter && statusFilter !== "all") {
-      formattedFilters.status = statusFilter;
+    if (dateFilters.statuses?.length) {
+      formattedFilters.status = dateFilters.statuses.join(",");
     }
 
     if (dateFilters.fromDate) {
@@ -147,20 +148,20 @@ export default function Tasks({ type = "normal" }: TasksProps) {
       )}
       <ContainerWrapper>
         <div
-          className="flex flex-wrap xl:flex-nowrap items-center justify-between gap-4 mb-4 sm+:mb-6"
+          className="flex flex-col gap-2 sm+:flex-row sm+:items-center sm+:gap-3 mb-4 sm+:mb-6"
           style={type === "archive" ? { marginBottom: 0 } : undefined}
         >
-          <div className="flex items-center ">
-            <SearchField
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={
-                type === "archive"
-                  ? "Search archived tasks..."
-                  : "Search tasks..."
-              }
-              className="!block w-[190px] sm+:w-auto flex-1"
-            />
+          <SearchField
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder={
+              type === "archive"
+                ? "Search archived tasks..."
+                : "Search tasks..."
+            }
+            className="!block w-full sm+:w-auto sm+:flex-1 sm+:max-w-xs min-w-0"
+          />
+          <div className="flex items-center gap-1.5 sm+:gap-3 w-full sm+:w-auto sm+:ml-auto justify-start">
             {type !== "archive" && (
               <AddEditTaskModal
                 open={editModalOpen}
@@ -175,69 +176,34 @@ export default function Tasks({ type = "normal" }: TasksProps) {
                 onTaskCreated={handleModalClose}
               />
             )}
-            <div
-              className={`w-46 ${
-                type !== "archive" ? "hidden sm+:block ml-4" : "block"
-              }`}
-            >
-              {/* Import/Export Toolbar */}
-              <ImportExport
-                module="task"
-                filters={formatFiltersForExport()}
-                onImportSuccess={() => {
-                  toast.success("Tasks imported successfully!");
-                }}
-                onExportSuccess={() => {
-                  toast.success("Tasks exported successfully!");
-                }}
+            {type !== "archive" && (
+              <FilterTaskModal
+                onApplyFilters={handleApplyFilters}
+                filterButtonRef={filterButtonRef}
+                activeCount={
+                  (dateFilters.statuses?.length || 0) +
+                  (dateFilters.assignedTo ? 1 : 0) +
+                  (dateFilters.reporterId ? 1 : 0) +
+                  (dateFilters.fromDate || dateFilters.toDate ? 1 : 0)
+                }
               />
-            </div>
-          </div>
-          <div className="w-full xl:w-auto flex gap-4">
-            {type !== "archive" && (
-              <div className="!min-w-36 sm+:hidden block">
-                {/* Import/Export Toolbar */}
-                <ImportExport
-                  module="task"
-                  filters={formatFiltersForExport()}
-                  onImportSuccess={() => {
-                    toast.success("Tasks imported successfully!");
-                  }}
-                  onExportSuccess={() => {
-                    toast.success("Tasks exported successfully!");
-                  }}
-                />
-              </div>
             )}
-            {type !== "archive" && (
-              <div className="flex gap-4 items-center">
-                <FilterTaskModal
-                  onApplyFilters={handleApplyFilters}
-                  filterButtonRef={filterButtonRef}
-                />
-                <CustomTab
-                  tabs={[
-                    { key: "all", label: "All Tasks" },
-                    { key: "pending", label: "Pending" },
-                    { key: "assigned", label: "Assigned" },
-                    { key: "acknowledged", label: "Acknowledged" },
-                    { key: "submitted", label: "Submitted" },
-                    { key: "on_hold", label: "On Hold" },
-                    { key: "rework", label: "Rework" },
-                    { key: "completed", label: "Completed" },
-                    { key: "cancelled", label: "Cancelled" },
-                  ]}
-                  selectedTab={statusFilter}
-                  setSelectedTab={setStatusFilter}
-                />{" "}
-              </div>
-            )}
+            <ImportExport
+              module="task"
+              filters={formatFiltersForExport()}
+              onImportSuccess={() => {
+                toast.success("Tasks imported successfully!");
+              }}
+              onExportSuccess={() => {
+                toast.success("Tasks exported successfully!");
+              }}
+            />
           </div>
         </div>
 
         <TasksTable
           searchTerm={searchTerm}
-          statusFilter={statusFilter}
+          statusFilter={dateFilters.statuses}
           onEditTask={handleEditTask}
           type={type}
           dateFilters={dateFilters}
